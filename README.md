@@ -1,79 +1,159 @@
-# Vuetify (Default)
+FitAlly Admin Console
 
-This is the official scaffolding tool for Vuetify, designed to give you a head start in building your new Vuetify application. It sets up a base template with all the necessary configurations and standard directory structure, enabling you to begin development without the hassle of setting up the project from scratch.
+FitAlly Admin Console is a Vue 3 + Vuetify based web application used to manage all dynamic content for the FitAlly Fitness Platform.
 
-## ❗️ Important Links
+This admin panel allows authorized users to manage:
 
-- 📄 [Docs](https://vuetifyjs.com/)
-- 🚨 [Issues](https://issues.vuetifyjs.com/)
-- 🏬 [Store](https://store.vuetifyjs.com/)
-- 🎮 [Playground](https://play.vuetifyjs.com/)
-- 💬 [Discord](https://community.vuetifyjs.com)
+Workouts
 
-## 💿 Install
+Exercises
 
-Set up your project using your preferred package manager. Use the corresponding command to install the dependencies:
+Media (Images & YouTube Videos)
 
-| Package Manager                                                | Command        |
-|---------------------------------------------------------------|----------------|
-| [yarn](https://yarnpkg.com/getting-started)                   | `yarn install` |
-| [npm](https://docs.npmjs.com/cli/v7/commands/npm-install)     | `npm install`  |
-| [pnpm](https://pnpm.io/installation)                          | `pnpm install` |
-| [bun](https://bun.sh/#getting-started)                        | `bun install`  |
+Programs (30/60/90 day plans)
 
-After completing the installation, your environment is ready for Vuetify development.
+CMS Content (Homepage, banners, pages, promotions)
 
-## ✨ Features
+Everything is dynamic and powered by the FitAlly Spring Boot backend.
 
-- 🖼️ **Optimized Front-End Stack**: Leverage the latest Vue 3 and Vuetify 3 for a modern, reactive UI development experience. [Vue 3](https://v3.vuejs.org/) | [Vuetify 3](https://vuetifyjs.com/en/)
-- 🗃️ **State Management**: Integrated with [Pinia](https://pinia.vuejs.org/), the intuitive, modular state management solution for Vue.
-- 🚦 **Routing and Layouts**: Utilizes Vue Router for SPA navigation and vite-plugin-vue-layouts for organizing Vue file layouts. [Vue Router](https://router.vuejs.org/) | [vite-plugin-vue-layouts](https://github.com/JohnCampionJr/vite-plugin-vue-layouts)
-- ⚡ **Next-Gen Tooling**: Powered by Vite, experience fast cold starts and instant HMR (Hot Module Replacement). [Vite](https://vitejs.dev/)
-- 🧩 **Automated Component Importing**: Streamline your workflow with unplugin-vue-components, automatically importing components as you use them. [unplugin-vue-components](https://github.com/antfu/unplugin-vue-components)
+🚀 Features
+Content Management
 
-These features are curated to provide a seamless development experience from setup to deployment, ensuring that your Vuetify application is both powerful and maintainable.
+Create & manage workouts
 
-## 💡 Usage
+Add exercises under workouts
 
-This section covers how to start the development server and build your project for production.
+Upload images (Cloudinary)
 
-### Starting the Development Server
+Add YouTube video links
 
-To start the development server with hot-reload, run the following command. The server will be accessible at [http://localhost:3000](http://localhost:3000):
+Build structured fitness programs
 
-```bash
-yarn dev
-```
+Manage CMS content (Home, About, etc.)
 
-(Repeat for npm, pnpm, and bun with respective commands.)
+Modern UI
 
-> Add NODE_OPTIONS='--no-warnings' to suppress the JSON import warnings that happen as part of the Vuetify import mapping. If you are on Node [v21.3.0](https://nodejs.org/en/blog/release/v21.3.0) or higher, you can change this to NODE_OPTIONS='--disable-warning=5401'. If you don't mind the warning, you can remove this from your package.json dev script.
+Responsive layout (mobile + desktop)
 
-### Building for Production
+Sidebar navigation
 
-To build your project for production, use:
+Dashboard overview
 
-```bash
-yarn build
-```
+Vuetify Material Design
 
-(Repeat for npm, pnpm, and bun with respective commands.)
+Backend Integration
 
-Once the build process is completed, your application will be ready for deployment in a production environment.
+Connects to FitAlly Spring Boot APIs
 
-## 💪 Support Vuetify Development
+Uses Axios for API calls
 
-This project is built with [Vuetify](https://vuetifyjs.com/en/), a UI Library with a comprehensive collection of Vue components. Vuetify is an MIT licensed Open Source project that has been made possible due to the generous contributions by our [sponsors and backers](https://vuetifyjs.com/introduction/sponsors-and-backers/). If you are interested in supporting this project, please consider:
+Ready for JWT authentication
 
-- [Requesting Enterprise Support](https://support.vuetifyjs.com/)
-- [Sponsoring John on Github](https://github.com/users/johnleider/sponsorship)
-- [Sponsoring Kael on Github](https://github.com/users/kaelwd/sponsorship)
-- [Supporting the team on Open Collective](https://opencollective.com/vuetify)
-- [Becoming a sponsor on Patreon](https://www.patreon.com/vuetify)
-- [Becoming a subscriber on Tidelift](https://tidelift.com/subscription/npm/vuetify)
-- [Making a one-time donation with Paypal](https://paypal.me/vuetify)
+🛠 Tech Stack
 
-## 📑 License
-[MIT](http://opensource.org/licenses/MIT)
+Vue 3
 
-Copyright (c) 2016-present Vuetify, LLC
+Vuetify 3
+
+Vite
+
+Axios
+
+Pinia
+
+Vue Router
+
+📦 Project Setup
+1. Prerequisites
+
+Make sure you have:
+
+node -v
+npm -v
+
+2. Install Dependencies
+   npm install
+
+3. Run the App
+   npm run dev
+
+
+Open in browser:
+
+http://localhost:5173
+
+🌐 Backend Connection
+
+The admin console connects to the FitAlly backend API:
+
+http://localhost:8080/api
+
+
+Make sure your backend is running before using the admin panel.
+
+📁 Project Structure
+src/
+api/          # Axios API clients
+views/        # Pages (Dashboard, Workouts, Programs, CMS)
+components/   # Reusable UI components
+layouts/      # Admin layout with sidebar
+router/       # Vue Router setup
+stores/       # Pinia state management
+
+🔐 Authentication (Planned)
+
+Currently, authentication is disabled for development.
+
+Planned features:
+
+JWT login
+
+Role-based access
+
+Secure admin routes
+
+🖼 Media Rules
+Media Type	Method
+Images	Uploaded to Cloudinary
+Videos	YouTube URLs only
+Audio	URL-based (future)
+
+This ensures fast performance and avoids heavy uploads.
+
+🧠 Design Philosophy
+
+No hardcoded content
+
+Fully admin-driven UI
+
+Reusable workouts & exercises
+
+Scalable structure
+
+Production-ready mindset
+
+🛣 Roadmap
+
+Enable JWT authentication
+
+User management UI
+
+Analytics dashboard
+
+Activity logs
+
+CI/CD deployment
+
+Mobile-first UX improvements
+
+👨‍💻 Author
+
+FitAlly Team
+Built to support a scalable fitness & wellness platform.
+
+⭐ Final Note
+
+This admin console is designed to manage everything dynamically for the FitAlly platform.
+
+No content is hardcoded.
+Everything is controlled from this panel.
