@@ -8,8 +8,8 @@ export const useAuthStore = defineStore("auth", {
   }),
 
   actions: {
-    async login(username, password) {
-      const res = await api.post("/auth/login", { username, password });
+    async login(email, password) {
+      const res = await api.post("/auth/login", { email, password });
       this.token = res.data.accessToken;
       localStorage.setItem("token", this.token);
     },

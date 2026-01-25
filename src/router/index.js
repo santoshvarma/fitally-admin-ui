@@ -38,13 +38,13 @@ const router = createRouter({
   routes,
 });
 
-/*
+
 router.beforeEach((to) => {
   const token = localStorage.getItem("token");
   if (to.meta.requiresAuth && !token) {
     return "/login";
   }
 });
-*/
+
 
 export default router;
