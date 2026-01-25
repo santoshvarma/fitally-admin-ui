@@ -10,6 +10,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/admin/', // ✅ REQUIRED for subpath deployment
   plugins: [
     Vue({
       template: { transformAssetUrls },
