@@ -1,13 +1,14 @@
 <template>
   <v-navigation-drawer
+    v-model="layout.drawer"
+    :temporary="mobile"
+    :persistent="!mobile"
+    :rail="!mobile && !layout.drawer"
+    expand-on-hover
     app
-    :permanent="!isMobile"
-    :temporary="isMobile"
-    breakpoint="md"
   >
     <v-list>
       <v-list-item title="FitAlly Admin" />
-
       <v-divider />
 
       <v-list-item to="/" title="Dashboard" />
@@ -19,7 +20,16 @@
 </template>
 
 <script setup>
+import { watch } from "vue";
+import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
+import { useLayoutStore } from "@/stores/layout";
 
-const { mobile: isMobile } = useDisplay();
+const { mobile } = useDisplay();
+const route = useRoute();
+const layout = useLayoutStore();
+
+watch(route, () => {
+  if (mobile.value) layout.drawer = false;
+});
 </script>
