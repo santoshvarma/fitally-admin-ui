@@ -23,9 +23,10 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: "", component: Dashboard },
+      { path: "exercises", component: Exercises },
+      { path: "exercises/:exerciseId/media", component: Media },
       { path: "workouts", component: Workouts },
       { path: "workouts/:workoutId/exercises", component: Exercises },
-      { path: "exercises/:exerciseId/media", component: Media },
       { path: "programs", component: Programs },
       { path: "programs/:programId/builder", component: ProgramBuilder },
       { path: "cms", component: CMS },

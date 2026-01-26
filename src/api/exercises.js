@@ -1,5 +1,8 @@
 import api from "./axios";
 
+export const getAllExercises = () =>
+  api.get(`/exercises`);
+
 export const getExercisesByWorkout = (workoutId) =>
   api.get(`/exercises/workout/${workoutId}`);
 

@@ -36,6 +36,12 @@
       />
 
       <v-list-item
+        to="/exercises"
+        title="Exercises"
+        prepend-icon="mdi-run"
+      />
+
+      <v-list-item
         to="/workouts"
         title="Workouts"
         prepend-icon="mdi-dumbbell"
