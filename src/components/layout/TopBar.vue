@@ -60,6 +60,6 @@ const toggleTheme = () => {
  */
 const logout = () => {
   auth.logout();
-  window.location.href = "/login";
+  window.location.href = "/admin/login";
 };
 </script>
