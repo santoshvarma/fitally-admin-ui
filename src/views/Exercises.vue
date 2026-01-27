@@ -10,10 +10,17 @@ const showForm = ref(false);
 const selected = ref(null);
 
 const load = async () => {
-  exercises.value = (await getAllExercises()).data;
+  loading.value = true;
+  try {
+    exercises.value = (await getAllExercises()).data;
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(load);
+
+const loading = ref(false);
 
 const create = () => {
   selected.value = null;
@@ -37,14 +44,37 @@ const saved = () => {
 
 <template>
   <v-card>
-    <v-card-title>
-      Exercises
-      <v-spacer/>
-      <v-btn color="primary" @click="create">Add Exercise</v-btn>
+    <v-card-title class="d-flex align-center">
+      <span class="text-h6"><v-icon>mdi-run</v-icon> Exercises</span>
+
+      <v-spacer />
+
+      <!-- Add Exercise -->
+      <v-btn
+        color="primary"
+        class="ml-2"
+        @click="create"
+      >
+        Add Exercise
+      </v-btn>
+      <!-- Refresh -->
+      <v-tooltip text="Refresh Exercises" location="top">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" icon @click="load">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
     </v-card-title>
 
-    <v-data-table :items="exercises">
-      <template #item.actions="{ item }">
+
+
+    <v-data-table
+      :items="exercises"
+      :loading="loading"
+      loading-text="Loading exercises..."
+    >
+    <template #item.actions="{ item }">
         <v-btn icon @click="edit(item)">
           <v-icon>mdi-pencil</v-icon>
         </v-btn>

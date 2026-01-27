@@ -6,8 +6,8 @@ export const getAllExercises = () =>
 export const getExercisesByWorkout = (workoutId) =>
   api.get(`/exercises/workout/${workoutId}`);
 
-export const createExercise = (workoutId, data) =>
-  api.post(`/exercises/workout/${workoutId}`, data);
+export const createExercise = (data) =>
+  api.post(`/exercises`, data);
 
 export const updateExercise = (id, data) =>
   api.put(`/exercises/${id}`, data);
