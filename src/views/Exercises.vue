@@ -9,6 +9,14 @@ const exercises = ref([]);
 const showForm = ref(false);
 const selected = ref(null);
 
+const headers = [
+  { title: "Title", key: "title" },
+  { title: "Description", key: "description" },
+  { title: "Equipment", key: "equipmentType" },
+  { title: "Actions", key: "actions", sortable: false },
+];
+
+
 const load = async () => {
   loading.value = true;
   try {
@@ -70,20 +78,30 @@ const saved = () => {
 
 
     <v-data-table
+      :headers="headers"
       :items="exercises"
       :loading="loading"
       loading-text="Loading exercises..."
     >
-    <template #item.actions="{ item }">
-        <v-btn icon @click="edit(item)">
-          <v-icon>mdi-pencil</v-icon>
-        </v-btn>
+      <template #item.actions="{ item }">
+        <v-tooltip text="Edit Exercise" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon @click="edit(item)">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
 
-        <v-btn icon @click="openMedia(item.id)">
-          <v-icon>mdi-image</v-icon>
-        </v-btn>
+        <v-tooltip text="Manage Media" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon @click="openMedia(item.id)">
+              <v-icon>mdi-image</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
       </template>
     </v-data-table>
+
 
     <ExerciseForm
       v-if="showForm"

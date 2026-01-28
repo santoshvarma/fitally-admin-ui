@@ -10,6 +10,7 @@ import ProgramBuilder from "@/views/ProgramBuilder.vue";
 import CMS from "@/views/CMS.vue";
 
 import AdminLayout from "@/layouts/AdminLayout.vue";
+import {useErrorStore} from "@/stores/error.js";
 
 const routes = [
   {
@@ -41,6 +42,8 @@ const router = createRouter({
 
 
 router.beforeEach((to) => {
+  const errorStore = useErrorStore();
+  errorStore.clear();
   const token = localStorage.getItem("token");
   if (to.meta.requiresAuth && !token) {
     return "/login";

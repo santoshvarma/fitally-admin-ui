@@ -20,6 +20,16 @@
         />
       </div>
 
+      <v-alert
+        v-if="loginError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+      >
+        {{ loginError }}
+      </v-alert>
+
+
       <!-- FORM -->
       <v-form ref="form" @submit.prevent="login">
         <v-text-field
@@ -71,6 +81,7 @@ const email = ref("");
 const password = ref("");
 const showPassword = ref(false);
 const loading = ref(false);
+const loginError = ref(null);
 
 const form = ref(null);
 
@@ -94,15 +105,25 @@ const login = async () => {
   const { valid } = await form.value.validate();
   if (!valid) return;
 
+  loginError.value = null;
+
   try {
     loading.value = true;
     await auth.login(email.value, password.value);
-    router.push("/");
+
+    // ✅ clear any old global errors just in case
+    // (important since login happens before AdminLayout)
+    const { useErrorStore } = await import("@/stores/error");
+    useErrorStore().clear();
+
+    await router.push("/");
   } catch (err) {
-    console.error("Login failed", err);
-    alert("Invalid credentials");
+    loginError.value =
+      err.response?.data?.message ||
+      "Invalid email or password";
   } finally {
     loading.value = false;
   }
 };
+
 </script>
