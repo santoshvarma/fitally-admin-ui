@@ -8,8 +8,28 @@ const emit = defineEmits(["saved", "close"]);
 const form = ref({
   title: "",
   description: "",
-  equipmentType: null,
+  equipmentType: "",
+  category: "GYM",
 });
+
+const equipmentTypes = [
+  { title: "Dumbbell", value: "DUMBBELL" },
+  { title: "Barbell", value: "BARBELL" },
+  { title: "Kettlebell", value: "KETTLEBELL" },
+  { title: "Machine", value: "MACHINE" },
+  { title: "Bodyweight", value: "BODYWEIGHT" },
+  { title: "Home", value: "HOME" },
+  { title: "None", value: "NONE" },
+];
+
+const fitnessCategories = [
+  { title: "Gym", value: "GYM" },
+  { title: "Yoga", value: "YOGA" },
+  { title: "Pilates", value: "PILATES" },
+  { title: "Meditation", value: "MEDITATION" },
+  { title: "HIIT", value: "HIIT" },
+  { title: "Zumba", value: "ZUMBA" },
+];
 
 watch(
   () => props.exercise,
@@ -37,9 +57,19 @@ const save = async () => {
         <v-text-field label="Title" v-model="form.title" />
         <v-textarea label="Description" v-model="form.description" />
         <v-select
-          label="Equipment"
-          :items="['BODYWEIGHT','DUMBBELL','BARBELL']"
+          label="Equipment Type"
+          :items="equipmentTypes"
+          item-title="title"
+          item-value="value"
           v-model="form.equipmentType"
+          clearable
+        />
+        <v-select
+          label="Fitness Category"
+          :items="fitnessCategories"
+          item-title="title"
+          item-value="value"
+          v-model="form.category"
         />
       </v-card-text>
 

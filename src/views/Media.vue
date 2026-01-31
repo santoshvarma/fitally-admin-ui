@@ -1,6 +1,13 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
+import { Editor, EditorContent } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+
+
 import {
   getMediaByExercise,
   uploadImage,
@@ -21,11 +28,29 @@ const showDialog = ref(false);
 /* ---------------------------------------
    Add Media Dialog State
 --------------------------------------- */
-const type = ref("IMAGE"); // IMAGE | VIDEO | AUDIO
+const type = ref("IMAGE");
 const title = ref("");
-const description = ref("");
+const description = ref(""); // HTML
 const file = ref(null);
 const url = ref("");
+
+/* ---------------------------------------
+   TipTap Editor
+--------------------------------------- */
+const editor = new Editor({
+  extensions: [
+    StarterKit,
+    Link.configure({
+      openOnClick: false,
+    }),
+    TextStyle,
+    Color,
+  ],
+  content: "",
+  onUpdate({ editor }) {
+    description.value = editor.getHTML();
+  },
+});
 
 /* ---------------------------------------
    Load Media
@@ -83,6 +108,7 @@ const resetForm = () => {
   description.value = "";
   file.value = null;
   url.value = "";
+  editor.commands.clearContent();
 };
 
 const getYoutubeEmbed = (videoUrl) => {
@@ -93,7 +119,12 @@ const getYoutubeEmbed = (videoUrl) => {
   return `https://www.youtube.com/embed/${id}`;
 };
 
+watch(showDialog, (val) => {
+  if (!val) editor.commands.clearContent();
+});
+
 onMounted(loadMedia);
+onBeforeUnmount(() => editor.destroy());
 </script>
 
 <template>
@@ -126,7 +157,6 @@ onMounted(loadMedia);
           md="4"
         >
           <v-card rounded="lg" elevation="4">
-            <!-- IMAGE -->
             <v-img
               v-if="m.type === 'IMAGE'"
               :src="m.url"
@@ -134,7 +164,6 @@ onMounted(loadMedia);
               cover
             />
 
-            <!-- VIDEO -->
             <iframe
               v-if="m.type === 'VIDEO'"
               :src="getYoutubeEmbed(m.url)"
@@ -144,7 +173,6 @@ onMounted(loadMedia);
               allowfullscreen
             />
 
-            <!-- AUDIO -->
             <audio
               v-if="m.type === 'AUDIO'"
               controls
@@ -156,17 +184,11 @@ onMounted(loadMedia);
               {{ m.title }}
             </v-card-title>
 
-            <v-card-subtitle>
-              {{ m.description }}
-            </v-card-subtitle>
+            <v-card-subtitle v-html="m.description" />
 
             <v-card-actions>
               <v-spacer />
-              <v-btn
-                icon
-                color="red"
-                @click="removeMedia(m.id)"
-              >
+              <v-btn icon color="red" @click="removeMedia(m.id)">
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
             </v-card-actions>
@@ -174,12 +196,7 @@ onMounted(loadMedia);
         </v-col>
       </v-row>
 
-      <!-- EMPTY STATE -->
-      <v-alert
-        v-else
-        type="info"
-        variant="tonal"
-      >
+      <v-alert v-else type="info" variant="tonal">
         No media added yet. Click <b>Add Media</b> to get started.
       </v-alert>
     </v-card-text>
@@ -194,40 +211,85 @@ onMounted(loadMedia);
             label="Media Type"
             :items="['IMAGE', 'VIDEO', 'AUDIO']"
             v-model="type"
+            class="mb-4"
           />
 
-          <v-text-field
-            label="Title"
-            v-model="title"
+          <v-text-field 
+            label="Title" 
+            v-model="title" 
+            class="mb-4"
           />
 
-          <v-textarea
-            label="Description"
-            v-model="description"
-          />
+          <!-- Description Section -->
+          <div class="mb-6">
+            <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
+              Description
+            </label>
+            
+            <!-- TipTap Toolbar -->
+            <div class="editor-toolbar mb-2">
+              <v-btn size="small" icon @click="editor.chain().focus().toggleBold().run()">
+                <v-icon>mdi-format-bold</v-icon>
+              </v-btn>
+              <v-btn size="small" icon @click="editor.chain().focus().toggleItalic().run()">
+                <v-icon>mdi-format-italic</v-icon>
+              </v-btn>
+              <v-btn size="small" icon @click="editor.chain().focus().toggleBulletList().run()">
+                <v-icon>mdi-format-list-bulleted</v-icon>
+              </v-btn>
+              <v-btn
+                size="small"
+                icon
+                @click="editor.chain().focus().setLink({ href: prompt('Enter URL') }).run()"
+              >
+                <v-icon>mdi-link</v-icon>
+              </v-btn>
+            </div>
 
-          <v-file-input
-            v-if="type === 'IMAGE' || type === 'AUDIO'"
-            label="Select File"
-            v-model="file"
-          />
+            <!-- TipTap Editor -->
+            <div class="tiptap-wrapper">
+              <EditorContent :editor="editor" />
+            </div>
+          </div>
 
-          <v-text-field
-            v-if="type === 'VIDEO'"
-            label="YouTube URL"
-            v-model="url"
-          />
+          <!-- File/URL Input Section -->
+          <div class="mt-6">
+            <v-file-input
+              v-if="type === 'IMAGE' || type === 'AUDIO'"
+              label="Select File"
+              v-model="file"
+              prepend-icon="mdi-paperclip"
+              variant="outlined"
+            />
+
+            <v-text-field
+              v-if="type === 'VIDEO'"
+              label="YouTube URL"
+              v-model="url"
+              prepend-icon="mdi-youtube"
+              variant="outlined"
+            />
+          </div>
         </v-card-text>
 
         <v-card-actions>
-          <v-btn text @click="showDialog = false">
-            Cancel
-          </v-btn>
-          <v-btn color="primary" @click="saveMedia">
-            Save
-          </v-btn>
+          <v-btn text @click="showDialog = false">Cancel</v-btn>
+          <v-btn color="primary" @click="saveMedia">Save</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
   </v-card>
 </template>
+
+<style scoped>
+.tiptap-wrapper {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px 10px;
+  min-height: 120px;
+}
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+}
+</style>

@@ -13,6 +13,7 @@ const headers = [
   { title: "Title", key: "title" },
   { title: "Description", key: "description" },
   { title: "Equipment", key: "equipmentType" },
+  { title: "Category", key: "category" },
   { title: "Actions", key: "actions", sortable: false },
 ];
 
