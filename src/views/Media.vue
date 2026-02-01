@@ -1,11 +1,11 @@
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount } from "vue";
-import { useRoute } from "vue-router";
-import { Editor, EditorContent } from "@tiptap/vue-3";
+import {ref, onMounted, watch, onBeforeUnmount} from "vue";
+import {useRoute} from "vue-router";
+import {Editor, EditorContent} from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { Color } from "@tiptap/extension-color";
+import {TextStyle} from "@tiptap/extension-text-style";
+import {Color} from "@tiptap/extension-color";
 
 
 import {
@@ -33,6 +33,8 @@ const title = ref("");
 const description = ref(""); // HTML
 const file = ref(null);
 const url = ref("");
+const saving = ref(false);
+
 
 /* ---------------------------------------
    TipTap Editor
@@ -47,7 +49,7 @@ const editor = new Editor({
     Color,
   ],
   content: "",
-  onUpdate({ editor }) {
+  onUpdate({editor}) {
     description.value = editor.getHTML();
   },
 });
@@ -69,26 +71,33 @@ const loadMedia = async () => {
    Save Media
 --------------------------------------- */
 const saveMedia = async () => {
-  if (type.value === "IMAGE" || type.value === "AUDIO") {
-    const formData = new FormData();
-    formData.append("file", file.value);
-    formData.append("title", title.value);
-    formData.append("description", description.value);
+  if (saving.value) return;
 
-    await uploadImage(exerciseId, formData);
+  saving.value = true;
+  try {
+    if (type.value === "IMAGE" || type.value === "AUDIO") {
+      const formData = new FormData();
+      formData.append("file", file.value);
+      formData.append("title", title.value);
+      formData.append("description", description.value);
+
+      await uploadImage(exerciseId, formData);
+    }
+
+    if (type.value === "VIDEO") {
+      await addYoutubeVideo(exerciseId, {
+        youtubeUrl: url.value,
+        title: title.value,
+        description: description.value,
+      });
+    }
+
+    resetForm();
+    showDialog.value = false;
+    loadMedia();
+  } finally {
+    saving.value = false;
   }
-
-  if (type.value === "VIDEO") {
-    await addYoutubeVideo(exerciseId, {
-      youtubeUrl: url.value,
-      title: title.value,
-      description: description.value,
-    });
-  }
-
-  resetForm();
-  showDialog.value = false;
-  loadMedia();
 };
 
 /* ---------------------------------------
@@ -136,7 +145,7 @@ onBeforeUnmount(() => editor.destroy());
         Exercise Media
       </span>
 
-      <v-spacer />
+      <v-spacer/>
 
       <v-btn color="primary" @click="showDialog = true">
         <v-icon start>mdi-plus</v-icon>
@@ -144,7 +153,7 @@ onBeforeUnmount(() => editor.destroy());
       </v-btn>
     </v-card-title>
 
-    <v-divider />
+    <v-divider/>
 
     <!-- MEDIA GRID -->
     <v-card-text>
@@ -184,10 +193,10 @@ onBeforeUnmount(() => editor.destroy());
               {{ m.title }}
             </v-card-title>
 
-            <v-card-subtitle v-html="m.description" />
+            <v-card-subtitle v-html="m.description"/>
 
             <v-card-actions>
-              <v-spacer />
+              <v-spacer/>
               <v-btn icon color="red" @click="removeMedia(m.id)">
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
@@ -202,7 +211,7 @@ onBeforeUnmount(() => editor.destroy());
     </v-card-text>
 
     <!-- ADD MEDIA DIALOG -->
-    <v-dialog v-model="showDialog" max-width="600">
+    <v-dialog v-model="showDialog" max-width="600" :persistent="saving">
       <v-card>
         <v-card-title>Add Media</v-card-title>
 
@@ -214,9 +223,9 @@ onBeforeUnmount(() => editor.destroy());
             class="mb-4"
           />
 
-          <v-text-field 
-            label="Title" 
-            v-model="title" 
+          <v-text-field
+            label="Title"
+            v-model="title"
             class="mb-4"
           />
 
@@ -225,7 +234,7 @@ onBeforeUnmount(() => editor.destroy());
             <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
               Description
             </label>
-            
+
             <!-- TipTap Toolbar -->
             <div class="editor-toolbar mb-2">
               <v-btn size="small" icon @click="editor.chain().focus().toggleBold().run()">
@@ -248,7 +257,7 @@ onBeforeUnmount(() => editor.destroy());
 
             <!-- TipTap Editor -->
             <div class="tiptap-wrapper">
-              <EditorContent :editor="editor" />
+              <EditorContent :editor="editor"/>
             </div>
           </div>
 
@@ -274,7 +283,7 @@ onBeforeUnmount(() => editor.destroy());
 
         <v-card-actions>
           <v-btn text @click="showDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="saveMedia">Save</v-btn>
+          <v-btn color="primary" :loading="saving" :disabled="saving" @click="saveMedia">{{ saving ? "Saving…" : "Save" }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -282,14 +291,4 @@ onBeforeUnmount(() => editor.destroy());
 </template>
 
 <style scoped>
-.tiptap-wrapper {
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 12px 10px;
-  min-height: 120px;
-}
-.editor-toolbar {
-  display: flex;
-  gap: 6px;
-}
 </style>

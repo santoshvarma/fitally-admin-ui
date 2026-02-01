@@ -14,4 +14,4 @@ export const addYoutubeVideo = (exerciseId, data) =>
   });
 
 export const deleteMedia = (id) =>
-  api.delete(`/media/${id}`);
+  api.delete(`/admin/media/${id}`);

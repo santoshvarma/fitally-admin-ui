@@ -1,0 +1,38 @@
+.tiptap-wrapper {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    min-height: 120px;
+
+    /* text safety */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    box-sizing: border-box;
+}
+
+/* ✅ FIX LIST OVERFLOW (GLOBAL – no :deep) */
+.tiptap-wrapper ul,
+.tiptap-wrapper ol {
+    padding-left: 1.25rem;   /* controls indent */
+    margin: 0.5rem 0;
+    box-sizing: border-box;
+}
+
+/* list item safety */
+.tiptap-wrapper li {
+    margin: 0.25rem 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* links safety */
+.tiptap-wrapper a {
+    word-break: break-all;
+}
+
+/* toolbar */
+.editor-toolbar {
+    display: flex;
+    gap: 6px;
+}

@@ -3,7 +3,8 @@ import App from "./App.vue";
 import router from "./router";
 import vuetify from "./plugins/vuetify";
 import { createPinia } from "pinia";
-
+import "@/styles/global/tiptap.css";
+import "@/styles/global/styles.css";
 const app = createApp(App);
 
 app.use(router);

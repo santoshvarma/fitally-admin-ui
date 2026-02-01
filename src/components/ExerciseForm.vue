@@ -1,6 +1,10 @@
 <script setup>
-import { ref, watch } from "vue";
-import {createExercise, updateExercise} from "@/api/exercises";
+import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { Editor, EditorContent } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+
+import { createExercise, updateExercise } from "@/api/exercises";
 
 const props = defineProps({ exercise: Object });
 const emit = defineEmits(["saved", "close"]);
@@ -12,6 +16,31 @@ const form = ref({
   category: "GYM",
 });
 
+/* ---------------------------------------
+   TipTap Editor
+--------------------------------------- */
+const editor = ref(null);
+
+onMounted(() => {
+  editor.value = new Editor({
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: false }),
+    ],
+    content: "",
+    onUpdate({ editor }) {
+      form.value.description = editor.getHTML();
+    },
+  });
+});
+
+onBeforeUnmount(() => {
+  editor.value?.destroy();
+});
+
+/* ---------------------------------------
+   Select Data
+--------------------------------------- */
 const equipmentTypes = [
   { title: "Dumbbell", value: "DUMBBELL" },
   { title: "Barbell", value: "BARBELL" },
@@ -31,14 +60,23 @@ const fitnessCategories = [
   { title: "Zumba", value: "ZUMBA" },
 ];
 
+/* ---------------------------------------
+   Load Exercise (Edit Mode)
+--------------------------------------- */
 watch(
   () => props.exercise,
   (val) => {
-    if (val) form.value = { ...val };
+    if (val) {
+      form.value = { ...val };
+      editor.value?.commands.setContent(val.description || "");
+    }
   },
   { immediate: true }
 );
 
+/* ---------------------------------------
+   Save
+--------------------------------------- */
 const save = async () => {
   props.exercise
     ? await updateExercise(props.exercise.id, form.value)
@@ -54,8 +92,55 @@ const save = async () => {
       <v-card-title>Exercise</v-card-title>
 
       <v-card-text>
-        <v-text-field label="Title" v-model="form.title" />
-        <v-textarea label="Description" v-model="form.description" />
+        <v-text-field
+          label="Title"
+          v-model="form.title"
+        />
+
+        <!-- TipTap Toolbar -->
+        <div class="editor-toolbar mb-2">
+          <v-btn
+            size="small"
+            icon
+            @click="editor.chain().focus().toggleBold().run()"
+          >
+            <v-icon>mdi-format-bold</v-icon>
+          </v-btn>
+
+          <v-btn
+            size="small"
+            icon
+            @click="editor.chain().focus().toggleItalic().run()"
+          >
+            <v-icon>mdi-format-italic</v-icon>
+          </v-btn>
+
+          <v-btn
+            size="small"
+            icon
+            @click="editor.chain().focus().toggleBulletList().run()"
+          >
+            <v-icon>mdi-format-list-bulleted</v-icon>
+          </v-btn>
+
+          <v-btn
+            size="small"
+            icon
+            @click="
+              editor.chain().focus().setLink({
+                href: prompt('Enter URL'),
+              }).run()
+            "
+          >
+            <v-icon>mdi-link</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- TipTap Editor -->
+        <div class="tiptap-wrapper mb-6">
+          <EditorContent v-if="editor" :editor="editor" />
+        </div>
+
         <v-select
           label="Equipment Type"
           :items="equipmentTypes"
@@ -64,6 +149,7 @@ const save = async () => {
           v-model="form.equipmentType"
           clearable
         />
+
         <v-select
           label="Fitness Category"
           :items="fitnessCategories"
@@ -80,3 +166,7 @@ const save = async () => {
     </v-card>
   </v-dialog>
 </template>
+
+<style scoped>
+
+</style>

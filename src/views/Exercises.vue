@@ -3,6 +3,7 @@ import {ref, onMounted} from "vue";
 import {useRouter} from "vue-router";
 import {getAllExercises} from "@/api/exercises";
 import ExerciseForm from "@/components/ExerciseForm.vue";
+import {previewText} from "@/utils/text-utils.js";
 
 const router = useRouter();
 const exercises = ref([]);
@@ -84,6 +85,12 @@ const saved = () => {
       :loading="loading"
       loading-text="Loading exercises..."
     >
+      <template #item.description="{ item }">
+        <span class="description-preview">
+          {{ previewText(item.description) }}
+        </span>
+      </template>
+
       <template #item.actions="{ item }">
         <v-tooltip text="Edit Exercise" location="top">
           <template #activator="{ props }">
