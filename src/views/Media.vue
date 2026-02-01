@@ -34,6 +34,12 @@ const description = ref(""); // HTML
 const file = ref(null);
 const url = ref("");
 const saving = ref(false);
+const deleteDialog = ref(false);
+const mediaToDelete = ref(null);
+
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
 
 /* ---------------------------------------
@@ -103,10 +109,29 @@ const saveMedia = async () => {
 /* ---------------------------------------
    Delete Media
 --------------------------------------- */
-const removeMedia = async (id) => {
-  await deleteMedia(id);
-  loadMedia();
+const removeMedia = (media) => {
+  mediaToDelete.value = media;
+  deleteDialog.value = true;
 };
+
+const confirmDelete = async () => {
+  try {
+    await deleteMedia(mediaToDelete.value.id);
+    snackbarText.value = "Media deleted successfully";
+    snackbarColor.value = "success";
+    snackbar.value = true;
+
+    loadMedia();
+  } catch (e) {
+    snackbarText.value = "Failed to delete media";
+    snackbarColor.value = "error";
+    snackbar.value = true;
+  } finally {
+    deleteDialog.value = false;
+    mediaToDelete.value = null;
+  }
+};
+
 
 /* ---------------------------------------
    Helpers
@@ -137,6 +162,14 @@ onBeforeUnmount(() => editor.destroy());
 </script>
 
 <template>
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    timeout="3000"
+  >
+    {{ snackbarText }}
+  </v-snackbar>
+
   <v-card>
     <!-- HEADER -->
     <v-card-title class="d-flex align-center">
@@ -197,8 +230,8 @@ onBeforeUnmount(() => editor.destroy());
 
             <v-card-actions>
               <v-spacer/>
-              <v-btn icon color="red" @click="removeMedia(m.id)">
-                <v-icon>mdi-delete</v-icon>
+              <v-btn icon color="red" @click="removeMedia(m)">
+              <v-icon>mdi-delete</v-icon>
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -288,6 +321,29 @@ onBeforeUnmount(() => editor.destroy());
       </v-card>
     </v-dialog>
   </v-card>
+  <v-dialog v-model="deleteDialog" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6">
+        Confirm Delete
+      </v-card-title>
+
+      <v-card-text>
+        Are you sure you want to delete
+        <b>{{ mediaToDelete?.title }}</b>?
+        <br />
+        This action cannot be undone.
+      </v-card-text>
+
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text @click="deleteDialog = false">Cancel</v-btn>
+        <v-btn color="red" @click="confirmDelete">
+          Delete
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
 </template>
 
 <style scoped>

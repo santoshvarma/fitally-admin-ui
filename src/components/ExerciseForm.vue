@@ -8,6 +8,7 @@ import { createExercise, updateExercise } from "@/api/exercises";
 
 const props = defineProps({ exercise: Object });
 const emit = defineEmits(["saved", "close"]);
+const dialog = ref(true);
 
 const form = ref({
   title: "",
@@ -67,7 +68,13 @@ watch(
   () => props.exercise,
   (val) => {
     if (val) {
-      form.value = { ...val };
+      form.value = {
+        title: val.title,
+        description: val.description,
+        equipmentType: val.equipmentType,
+        category: val.category,
+      };
+
       editor.value?.commands.setContent(val.description || "");
     }
   },
@@ -87,8 +94,8 @@ const save = async () => {
 </script>
 
 <template>
-  <v-dialog model-value max-width="600">
-    <v-card>
+  <v-dialog v-model="dialog" max-width="600">
+  <v-card>
       <v-card-title>Exercise</v-card-title>
 
       <v-card-text>
