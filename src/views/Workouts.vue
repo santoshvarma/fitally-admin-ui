@@ -1,29 +1,45 @@
 <template>
   <v-container fluid>
-    <v-row align="center" justify="space-between">
-      <h2 class="text-h5">Workouts</h2>
+    <v-card>
+      <v-card-title class="d-flex align-center">
+        <span class="text-h6">
+          <v-icon>mdi-dumbbell</v-icon>
+          Workouts
+        </span>
 
-      <div class="d-flex ga-2">
-        <v-btn
-          icon="mdi-refresh"
-          variant="tonal"
-          @click="loadWorkouts"
-          :loading="loading"
-        />
+        <v-spacer />
 
-        <v-btn color="primary" @click="openCreate">
+        <v-tooltip text="Refresh Workouts" location="top">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon
+              @click="loadWorkouts"
+              :loading="loading"
+            >
+              <v-icon>mdi-refresh</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+
+        <v-btn color="primary" class="ml-2" @click="openCreate">
           Add Workout
         </v-btn>
-      </div>
-    </v-row>
+      </v-card-title>
 
-    <v-data-table
-      class="mt-4"
-      :headers="headers"
-      :items="workouts"
-      :loading="loading"
-      item-key="id"
-    >
+      <v-data-table
+        class="mt-2"
+        :headers="headers"
+        :items="workouts"
+        :loading="loading"
+        item-key="id"
+      >
+      <template #item.description="{ item }">
+        <span class="description-preview">
+          {{ previewText(item.description) }}
+        </span>
+      </template>
+
       <template #item.active="{ value }">
         <v-chip :color="value ? 'green' : 'grey'" size="small">
           {{ value ? "Active" : "Inactive" }}
@@ -45,7 +61,8 @@
           @click="remove(item.id)"
         />
       </template>
-    </v-data-table>
+      </v-data-table>
+    </v-card>
 
     <WorkoutForm
       v-model="dialog"
@@ -59,6 +76,7 @@
 import { ref, onMounted } from "vue";
 import { getWorkouts, deleteWorkout } from "@/api/workouts";
 import WorkoutForm from "@/components/WorkoutForm.vue";
+import { previewText } from "@/utils/text-utils.js";
 
 const workouts = ref([]);
 const loading = ref(false);
@@ -66,12 +84,13 @@ const dialog = ref(false);
 const selected = ref(null);
 
 const headers = [
-  { text: "Title", value: "title" },
-  { text: "Category", value: "category" },
-  { text: "Difficulty", value: "difficulty" },
-  { text: "Equipment", value: "equipmentType" },
-  { text: "Status", value: "active" },
-  { text: "Actions", value: "actions", sortable: false },
+  { title: "Title", key: "title" },
+  { title: "Description", key: "description" },
+  { title: "Category", key: "category" },
+  { title: "Difficulty", key: "difficulty" },
+  { title: "Equipment", key: "equipmentType" },
+  { title: "Status", key: "active" },
+  { title: "Actions", key: "actions", sortable: false },
 ];
 
 const loadWorkouts = async () => {
