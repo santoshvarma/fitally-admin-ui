@@ -1,6 +1,6 @@
 import api from "./axios";
 
-export const getPrograms = () => api.get("/programs");
+export const getPrograms = (params) => api.get("/programs", { params });
 
 export const createProgram = (data) => api.post("/programs", data);
 

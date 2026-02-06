@@ -1,14 +1,19 @@
 <script setup>
-import {ref, onMounted} from "vue";
-import {useRouter} from "vue-router";
-import {getAllExercises} from "@/api/exercises";
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { getAllExercises } from "@/api/exercises";
 import ExerciseForm from "@/components/ExerciseForm.vue";
-import {previewText} from "@/utils/text-utils.js";
+import { previewText } from "@/utils/text-utils.js";
 
 const router = useRouter();
 const exercises = ref([]);
 const showForm = ref(false);
 const selected = ref(null);
+const loading = ref(false);
+const page = ref(1);
+const itemsPerPage = ref(20);
+const sortBy = ref([]);
+const totalItems = ref(0);
 
 const headers = [
   { title: "Title", key: "title" },
@@ -19,18 +24,64 @@ const headers = [
 ];
 
 
+const normalizeList = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.content)) {
+    return payload.content;
+  }
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+  if (Array.isArray(payload?.exercises)) {
+    return payload.exercises;
+  }
+  return [];
+};
+
+const getSortParams = () => {
+  if (!sortBy.value?.length) {
+    return {};
+  }
+  const [sort] = sortBy.value;
+  return sort?.key
+    ? { sortBy: sort.key, sortDir: sort.order || "asc" }
+    : {};
+};
+
+const applyPagedResponse = (data) => {
+  const list = normalizeList(data);
+  exercises.value = list;
+  totalItems.value =
+    typeof data?.totalElements === "number" ? data.totalElements : list.length;
+};
+
 const load = async () => {
   loading.value = true;
   try {
-    exercises.value = (await getAllExercises()).data;
+    const res = await getAllExercises({
+      pageNumber: page.value - 1,
+      pageSize: itemsPerPage.value,
+      ...getSortParams(),
+    });
+    applyPagedResponse(res.data);
   } finally {
     loading.value = false;
   }
 };
 
-onMounted(load);
+const updateOptions = (options) => {
+  page.value = options.page;
+  itemsPerPage.value = options.itemsPerPage;
+  sortBy.value = options.sortBy ?? [];
+  load();
+};
 
-const loading = ref(false);
+onMounted(load);
 
 const create = () => {
   selected.value = null;
@@ -59,14 +110,6 @@ const saved = () => {
 
       <v-spacer />
 
-      <!-- Add Exercise -->
-      <v-btn
-        color="primary"
-        class="ml-2"
-        @click="create"
-      >
-        Add Exercise
-      </v-btn>
       <!-- Refresh -->
       <v-tooltip text="Refresh Exercises" location="top">
         <template #activator="{ props }">
@@ -75,14 +118,27 @@ const saved = () => {
           </v-btn>
         </template>
       </v-tooltip>
+      <!-- Add Exercise -->
+      <v-btn
+        color="primary"
+        class="ml-2"
+        @click="create"
+      >
+        Add Exercise
+      </v-btn>
     </v-card-title>
 
 
 
-    <v-data-table
+    <v-data-table-server
       :headers="headers"
       :items="exercises"
       :loading="loading"
+      :items-length="totalItems"
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      v-model:sort-by="sortBy"
+      @update:options="updateOptions"
       loading-text="Loading exercises..."
     >
       <template #item.description="{ item }">
@@ -108,7 +164,7 @@ const saved = () => {
           </template>
         </v-tooltip>
       </template>
-    </v-data-table>
+    </v-data-table-server>
 
 
     <ExerciseForm

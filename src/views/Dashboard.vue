@@ -22,6 +22,8 @@
           :value="stats.workouts"
           icon="mdi-dumbbell"
           color="primary"
+          :loading="loading.workouts"
+          @refresh="loadWorkouts"
         />
       </v-col>
 
@@ -31,6 +33,8 @@
           :value="stats.programs"
           icon="mdi-calendar-check"
           color="success"
+          :loading="loading.programs"
+          @refresh="loadPrograms"
         />
       </v-col>
 
@@ -40,6 +44,8 @@
           :value="stats.exercises"
           icon="mdi-run-fast"
           color="info"
+          :loading="loading.exercises"
+          @refresh="loadExercises"
         />
       </v-col>
 
@@ -49,6 +55,8 @@
           :value="stats.cms"
           icon="mdi-file-document-edit"
           color="warning"
+          :loading="loading.cms"
+          @refresh="loadCms"
         />
       </v-col>
     </v-row>
@@ -56,17 +64,92 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import StatCard from "@/components/dashboard/StatCard.vue";
+import { getWorkouts } from "@/api/workouts";
+import { getPrograms } from "@/api/programs";
+import { getAllExercises } from "@/api/exercises";
+import { getContentByPage } from "@/api/cms";
 
-/**
- * Dashboard statistics
- * (Later this can come from API)
- */
+const cmsPages = ["HOME", "ABOUT", "TERMS", "PRIVACY", "DASHBOARD"];
+
 const stats = ref({
-  workouts: 12,
-  programs: 5,
-  exercises: 48,
-  cms: 9,
+  workouts: 0,
+  programs: 0,
+  exercises: 0,
+  cms: 0,
 });
+
+const getResponseCount = (data) => {
+  if (typeof data?.totalElements === "number") {
+    return data.totalElements;
+  }
+  if (Array.isArray(data)) {
+    return data.length;
+  }
+  if (Array.isArray(data?.content)) {
+    return data.content.length;
+  }
+  return 0;
+};
+
+const loading = ref({
+  workouts: false,
+  programs: false,
+  exercises: false,
+  cms: false,
+});
+
+const loadWorkouts = async () => {
+  loading.value.workouts = true;
+  try {
+    const res = await getWorkouts();
+    stats.value.workouts = getResponseCount(res.data);
+  } finally {
+    loading.value.workouts = false;
+  }
+};
+
+const loadPrograms = async () => {
+  loading.value.programs = true;
+  try {
+    const res = await getPrograms();
+    stats.value.programs = getResponseCount(res.data);
+  } finally {
+    loading.value.programs = false;
+  }
+};
+
+const loadExercises = async () => {
+  loading.value.exercises = true;
+  try {
+    const res = await getAllExercises();
+    stats.value.exercises = getResponseCount(res.data);
+  } finally {
+    loading.value.exercises = false;
+  }
+};
+
+const loadCms = async () => {
+  loading.value.cms = true;
+  try {
+    const results = await Promise.allSettled(
+      cmsPages.map((page) => getContentByPage(page))
+    );
+    stats.value.cms = results.reduce((sum, result) => {
+      if (result.status !== "fulfilled") {
+        return sum;
+      }
+      return sum + getResponseCount(result.value?.data);
+    }, 0);
+  } finally {
+    loading.value.cms = false;
+  }
+};
+
+const loadStats = async () => {
+  await Promise.all([loadWorkouts(), loadPrograms(), loadExercises(), loadCms()]);
+};
+
+onMounted(loadStats);
 </script>

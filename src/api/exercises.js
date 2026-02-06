@@ -1,10 +1,10 @@
 import api from "./axios";
 
-export const getAllExercises = () =>
-  api.get(`/exercises`);
+export const getAllExercises = (params) =>
+  api.get(`/exercises`, { params });
 
-export const getExercisesByWorkout = (workoutId) =>
-  api.get(`/exercises/workout/${workoutId}`);
+export const getExercisesByWorkout = (workoutId, params) =>
+  api.get(`/exercises/workout/${workoutId}`, { params });
 
 export const createExercise = (data) =>
   api.post(`/exercises`, data);

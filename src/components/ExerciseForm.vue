@@ -104,6 +104,7 @@ const save = async () => {
           v-model="form.title"
         />
 
+        <label class="v-label">Description</label>
         <!-- TipTap Toolbar -->
         <div class="editor-toolbar mb-2">
           <v-btn
