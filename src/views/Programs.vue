@@ -1,4 +1,12 @@
 <template>
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    timeout="3000"
+  >
+    {{ snackbarText }}
+  </v-snackbar>
+
   <v-card>
     <v-card-title class="d-flex align-center">
       <span class="text-h6">
@@ -13,7 +21,7 @@
           <v-btn
             v-bind="props"
             icon
-            @click="loadPrograms"
+            @click="refresh"
             :loading="loading"
           >
             <v-icon>mdi-refresh</v-icon>
@@ -82,7 +90,7 @@
     v-if="showDialog"
     :program="selected"
     @close="closeDialog"
-    @saved="loadPrograms"
+    @saved="saved"
   />
 </template>
 
@@ -102,6 +110,9 @@ const page = ref(1);
 const itemsPerPage = ref(20);
 const sortBy = ref([]);
 const totalItems = ref(0);
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
 const headers = [
   { title: "Title", key: "title" },
@@ -142,7 +153,13 @@ const getSortParams = () => {
     : {};
 };
 
-const loadPrograms = async () => {
+const showSnackbar = (message, color = "success") => {
+  snackbarText.value = message;
+  snackbarColor.value = color;
+  snackbar.value = true;
+};
+
+const loadPrograms = async ({ notify = false } = {}) => {
   loading.value = true;
   try {
     const res = await getPrograms({
@@ -156,6 +173,9 @@ const loadPrograms = async () => {
       typeof res.data?.totalElements === "number"
         ? res.data.totalElements
         : list.length;
+    if (notify) {
+      showSnackbar("Programs loaded");
+    }
   } catch (e) {
     console.error("Failed to load programs", e);
     programs.value = [];
@@ -170,6 +190,10 @@ const updateOptions = (options) => {
   itemsPerPage.value = options.itemsPerPage;
   sortBy.value = options.sortBy ?? [];
   loadPrograms();
+};
+
+const refresh = () => {
+  loadPrograms({ notify: true });
 };
 
 const openDialog = () => {
@@ -188,12 +212,18 @@ const closeDialog = () => {
 
 const remove = async (id) => {
   await deleteProgram(id);
-  loadPrograms();
+  loadPrograms({ notify: false });
+  showSnackbar("Program deleted");
 };
 
 const manage = (p) => {
   router.push(`/programs/${p.id}/builder`);
 };
 
-onMounted(loadPrograms);
+const saved = () => {
+  loadPrograms({ notify: false });
+  showSnackbar("Program saved");
+};
+
+onMounted(() => loadPrograms({ notify: false }));
 </script>

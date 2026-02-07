@@ -46,3 +46,18 @@ Response:
 }
 ```
 
+POST /api/auth/firebase
+Request:
+```json
+{
+  "idToken": "firebase-id-token"
+}
+```
+Response:
+```json
+{
+  "accessToken": "jwt-token",
+  "refreshToken": "uuid-token"
+}
+```
+

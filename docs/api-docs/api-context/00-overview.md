@@ -69,6 +69,7 @@ Auth
 - POST /api/auth/register
 - POST /api/auth/login
 - POST /api/auth/refresh
+- POST /api/auth/firebase
 
 Health
 - GET /api/health
@@ -124,6 +125,10 @@ CMS Media
 - DELETE /api/content-media/{id}
 - POST /api/content-media/image/content/{contentId} (multipart: file, title)
 
+User Profile
+- GET /api/profile
+- PUT /api/profile
+
 AdminController (Note)
 -----------------------
 AdminController is mapped at /api/admin, but its endpoints also include /api/admin
@@ -164,4 +169,39 @@ WorkoutResponse includes:
 
 Media metadata:
 - Cloudinary uploads store provider and image-id in jsonb metadata
+
+CMS Usage Guide (Simple)
+------------------------
+This is a lightweight pattern that your current entities already support.
+
+Goals
+- Keep UI content dynamic without complex rule engines.
+- Allow admin control of what appears on each screen.
+- Use ordering and active flags to control visibility.
+
+How to model screens
+1) Use AppContent.page to represent a screen (HOME, ONBOARDING, PROFILE, FAQ, etc.).
+2) Use AppContent.type to represent the block kind (HOME_BANNER, FEATURED_SECTION, PAGE, ARTICLE).
+3) Use displayOrder to define the order of blocks on that screen.
+4) Use active to enable/disable blocks without deleting them.
+5) Attach AppContentMedia for images or videos used by a block.
+
+How the app should render
+1) Call GET /api/content?page=HOME (or another screen name).
+2) Render blocks in displayOrder.
+3) Map type to a UI component:
+   - HOME_BANNER -> hero/banner component
+   - FEATURED_SECTION -> horizontal list or carousel
+   - PAGE/ARTICLE -> full text page
+
+Example setup
+- HOME + HOME_BANNER: main banner image + short description
+- HOME + FEATURED_SECTION: list of featured workouts
+- ONBOARDING + PAGE: each step as a content block
+- FAQ + ARTICLE: each FAQ item as a block
+
+When to extend later (optional)
+- Add a slot field if you need exact placement.
+- Add start/end time if you need timed content.
+- Add a small JSON field for UI hints if needed.
 

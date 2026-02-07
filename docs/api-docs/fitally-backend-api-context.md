@@ -18,4 +18,5 @@ API Payloads
 - docs/api-context/70-admin-media-uploads.md
 - docs/api-context/80-cms-content.md
 - docs/api-context/90-cms-media.md
+- docs/api-context/95-user-profile.md
 

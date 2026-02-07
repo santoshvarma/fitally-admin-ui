@@ -1,10 +1,52 @@
 <template>
-  <v-dialog v-model="dialog" max-width="500">
+  <v-dialog v-model="dialog" max-width="800">
     <v-card class="pa-4">
       <h3>{{ contentItem ? "Edit" : "Create" }} CMS Content</h3>
 
       <v-text-field label="Title" v-model="form.title" />
-      <v-textarea label="Description" v-model="form.description" />
+
+      <label class="v-label">Description</label>
+      <div class="editor-toolbar mb-2">
+        <v-btn
+          size="small"
+          icon
+          @click="editor.chain().focus().toggleBold().run()"
+        >
+          <v-icon>mdi-format-bold</v-icon>
+        </v-btn>
+
+        <v-btn
+          size="small"
+          icon
+          @click="editor.chain().focus().toggleItalic().run()"
+        >
+          <v-icon>mdi-format-italic</v-icon>
+        </v-btn>
+
+        <v-btn
+          size="small"
+          icon
+          @click="editor.chain().focus().toggleBulletList().run()"
+        >
+          <v-icon>mdi-format-list-bulleted</v-icon>
+        </v-btn>
+
+        <v-btn
+          size="small"
+          icon
+          @click="
+            editor.chain().focus().setLink({
+              href: prompt('Enter URL'),
+            }).run()
+          "
+        >
+          <v-icon>mdi-link</v-icon>
+        </v-btn>
+      </div>
+
+      <div class="tiptap-wrapper mb-6">
+        <EditorContent v-if="editor" :editor="editor" />
+      </div>
 
       <v-select label="Type" :items="types" v-model="form.type" />
       <v-text-field label="Page" v-model="form.page" />
@@ -23,7 +65,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { Editor, EditorContent } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
 import { createContent, updateContent } from "@/api/cms";
 
 const props = defineProps(["contentItem"]);
@@ -40,6 +85,28 @@ const form = ref({
   active: true,
 });
 
+const editor = ref(null);
+
+onMounted(() => {
+  editor.value = new Editor({
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: false }),
+    ],
+    content: "",
+    onUpdate({ editor }) {
+      form.value.description = editor.getHTML();
+    },
+  });
+  if (props.contentItem?.description) {
+    editor.value.commands.setContent(props.contentItem.description);
+  }
+});
+
+onBeforeUnmount(() => {
+  editor.value?.destroy();
+});
+
 const types = [
   "HOME_BANNER",
   "FEATURED_SECTION",
@@ -54,6 +121,9 @@ watch(
   () => props.contentItem,
   (c) => {
     if (c) form.value = { ...c };
+    if (editor.value) {
+      editor.value.commands.setContent(c?.description || "");
+    }
   },
   { immediate: true }
 );

@@ -14,6 +14,9 @@ const page = ref(1);
 const itemsPerPage = ref(20);
 const sortBy = ref([]);
 const totalItems = ref(0);
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
 const headers = [
   { title: "Title", key: "title" },
@@ -60,7 +63,13 @@ const applyPagedResponse = (data) => {
     typeof data?.totalElements === "number" ? data.totalElements : list.length;
 };
 
-const load = async () => {
+const showSnackbar = (message, color = "success") => {
+  snackbarText.value = message;
+  snackbarColor.value = color;
+  snackbar.value = true;
+};
+
+const load = async ({ notify = false } = {}) => {
   loading.value = true;
   try {
     const res = await getAllExercises({
@@ -69,6 +78,9 @@ const load = async () => {
       ...getSortParams(),
     });
     applyPagedResponse(res.data);
+    if (notify) {
+      showSnackbar("Exercises loaded");
+    }
   } finally {
     loading.value = false;
   }
@@ -81,7 +93,11 @@ const updateOptions = (options) => {
   load();
 };
 
-onMounted(load);
+const refresh = () => {
+  load({ notify: true });
+};
+
+onMounted(() => load({ notify: false }));
 
 const create = () => {
   selected.value = null;
@@ -99,11 +115,20 @@ const openMedia = (id) => {
 
 const saved = () => {
   showForm.value = false;
-  load();
+  load({ notify: false });
+  showSnackbar("Exercise saved");
 };
 </script>
 
 <template>
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    timeout="3000"
+  >
+    {{ snackbarText }}
+  </v-snackbar>
+
   <v-card>
     <v-card-title class="d-flex align-center">
       <span class="text-h6"><v-icon>mdi-run</v-icon> Exercises</span>
@@ -113,7 +138,7 @@ const saved = () => {
       <!-- Refresh -->
       <v-tooltip text="Refresh Exercises" location="top">
         <template #activator="{ props }">
-          <v-btn v-bind="props" icon @click="load">
+          <v-btn v-bind="props" icon @click="refresh">
             <v-icon>mdi-refresh</v-icon>
           </v-btn>
         </template>

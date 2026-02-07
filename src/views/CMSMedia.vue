@@ -1,39 +1,38 @@
 <script setup>
-import {ref, onMounted, watch, onBeforeUnmount} from "vue";
-import {useRoute} from "vue-router";
-import {Editor, EditorContent} from "@tiptap/vue-3";
+import { ref, onMounted, watch, onBeforeUnmount } from "vue";
+import { useRoute } from "vue-router";
+import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import {TextStyle} from "@tiptap/extension-text-style";
-import {Color} from "@tiptap/extension-color";
-
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
 
 import {
-  getMediaByExercise,
-  uploadImage,
-  addYoutubeVideo,
-  deleteMedia,
-} from "@/api/media";
+  getContentMedia,
+  createContentMedia,
+  deleteContentMedia,
+  uploadContentImage,
+} from "@/api/cms";
 
-/* ---------------------------------------
-   Route & State
---------------------------------------- */
 const route = useRoute();
-const exerciseId = route.params.exerciseId;
+const contentId = route.params.contentId;
 
 const media = ref([]);
 const loading = ref(false);
 const showDialog = ref(false);
+const saving = ref(false);
 
-/* ---------------------------------------
-   Add Media Dialog State
---------------------------------------- */
+const page = ref(1);
+const itemsPerPage = ref(12);
+const totalItems = ref(0);
+const sortBy = ref([]);
+
 const type = ref("IMAGE");
 const title = ref("");
-const description = ref(""); // HTML
+const description = ref("");
 const file = ref(null);
 const url = ref("");
-const saving = ref(false);
+
 const deleteDialog = ref(false);
 const mediaToDelete = ref(null);
 
@@ -41,38 +40,53 @@ const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 
+const editor = new Editor({
+  extensions: [
+    StarterKit,
+    Link.configure({ openOnClick: false }),
+    TextStyle,
+    Color,
+  ],
+  content: "",
+  onUpdate({ editor }) {
+    description.value = editor.getHTML();
+  },
+});
+
+const getSortParams = () => {
+  if (!sortBy.value?.length) {
+    return {};
+  }
+  const [sort] = sortBy.value;
+  return sort?.key
+    ? { sortBy: sort.key, sortDir: sort.order || "asc" }
+    : {};
+};
+
 const showSnackbar = (message, color = "success") => {
   snackbarText.value = message;
   snackbarColor.value = color;
   snackbar.value = true;
 };
 
-/* ---------------------------------------
-   TipTap Editor
---------------------------------------- */
-const editor = new Editor({
-  extensions: [
-    StarterKit,
-    Link.configure({
-      openOnClick: false,
-    }),
-    TextStyle,
-    Color,
-  ],
-  content: "",
-  onUpdate({editor}) {
-    description.value = editor.getHTML();
-  },
-});
-
-/* ---------------------------------------
-   Load Media
---------------------------------------- */
 const loadMedia = async ({ notify = false } = {}) => {
   loading.value = true;
   try {
-    const res = await getMediaByExercise(exerciseId);
-    media.value = res.data;
+    const res = await getContentMedia(contentId, {
+      pageNumber: page.value - 1,
+      pageSize: itemsPerPage.value,
+      ...getSortParams(),
+    });
+    const list = Array.isArray(res.data?.content)
+      ? res.data.content
+      : Array.isArray(res.data)
+        ? res.data
+        : [];
+    media.value = list;
+    totalItems.value =
+      typeof res.data?.totalElements === "number"
+        ? res.data.totalElements
+        : list.length;
     if (notify) {
       showSnackbar("Media loaded");
     }
@@ -81,65 +95,6 @@ const loadMedia = async ({ notify = false } = {}) => {
   }
 };
 
-/* ---------------------------------------
-   Save Media
---------------------------------------- */
-const saveMedia = async () => {
-  if (saving.value) return;
-
-  saving.value = true;
-  try {
-    if (type.value === "IMAGE" || type.value === "AUDIO") {
-      const formData = new FormData();
-      formData.append("file", file.value);
-      formData.append("title", title.value);
-      formData.append("description", description.value);
-
-      await uploadImage(exerciseId, formData);
-    }
-
-    if (type.value === "VIDEO") {
-      await addYoutubeVideo(exerciseId, {
-        youtubeUrl: url.value,
-        title: title.value,
-        description: description.value,
-      });
-    }
-
-    resetForm();
-    showDialog.value = false;
-    loadMedia({ notify: false });
-    showSnackbar("Media saved");
-  } finally {
-    saving.value = false;
-  }
-};
-
-/* ---------------------------------------
-   Delete Media
---------------------------------------- */
-const removeMedia = (media) => {
-  mediaToDelete.value = media;
-  deleteDialog.value = true;
-};
-
-const confirmDelete = async () => {
-  try {
-    await deleteMedia(mediaToDelete.value.id);
-    showSnackbar("Media deleted successfully");
-    loadMedia({ notify: false });
-  } catch (e) {
-    showSnackbar("Failed to delete media", "error");
-  } finally {
-    deleteDialog.value = false;
-    mediaToDelete.value = null;
-  }
-};
-
-
-/* ---------------------------------------
-   Helpers
---------------------------------------- */
 const resetForm = () => {
   type.value = "IMAGE";
   title.value = "";
@@ -147,6 +102,51 @@ const resetForm = () => {
   file.value = null;
   url.value = "";
   editor.commands.clearContent();
+};
+
+const saveMedia = async () => {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    if (type.value === "IMAGE" && file.value) {
+      const formData = new FormData();
+      formData.append("file", file.value);
+      formData.append("title", title.value);
+      await uploadContentImage(contentId, formData);
+    } else {
+      await createContentMedia(contentId, {
+        title: title.value,
+        description: description.value,
+        url: url.value,
+        type: type.value,
+      });
+    }
+
+    resetForm();
+    showDialog.value = false;
+    await loadMedia({ notify: false });
+    showSnackbar("Media saved");
+  } finally {
+    saving.value = false;
+  }
+};
+
+const removeMedia = (item) => {
+  mediaToDelete.value = item;
+  deleteDialog.value = true;
+};
+
+const confirmDelete = async () => {
+  try {
+    await deleteContentMedia(mediaToDelete.value.id);
+    showSnackbar("Media deleted successfully");
+    await loadMedia({ notify: false });
+  } catch (e) {
+    showSnackbar("Failed to delete media", "error");
+  } finally {
+    deleteDialog.value = false;
+    mediaToDelete.value = null;
+  }
 };
 
 const getYoutubeEmbed = (videoUrl) => {
@@ -157,11 +157,20 @@ const getYoutubeEmbed = (videoUrl) => {
   return `https://www.youtube.com/embed/${id}`;
 };
 
+const onPageChange = (value) => {
+  page.value = value;
+  loadMedia();
+};
+
+const refresh = () => {
+  loadMedia({ notify: true });
+};
+
 watch(showDialog, (val) => {
   if (!val) editor.commands.clearContent();
 });
 
-onMounted(loadMedia);
+onMounted(() => loadMedia({ notify: false }));
 onBeforeUnmount(() => editor.destroy());
 </script>
 
@@ -174,25 +183,31 @@ onBeforeUnmount(() => editor.destroy());
     {{ snackbarText }}
   </v-snackbar>
 
-  <v-card>
-    <!-- HEADER -->
-    <v-card-title class="d-flex align-center">
-      <span class="text-h6">
-        <v-icon start>mdi-image-multiple</v-icon>
-        Exercise Media
-      </span>
+  <v-container fluid>
+    <v-card>
+      <v-card-title class="d-flex align-center">
+        <span class="text-h6">
+          <v-icon>mdi-image-multiple</v-icon>
+          CMS Media
+        </span>
 
-      <v-spacer/>
+        <v-spacer />
 
-      <v-btn color="primary" @click="showDialog = true">
-        <v-icon start>mdi-plus</v-icon>
-        Add Media
-      </v-btn>
-    </v-card-title>
+        <v-tooltip text="Refresh Media" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon @click="refresh" :loading="loading">
+              <v-icon>mdi-refresh</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
 
-    <v-divider/>
+        <v-btn color="primary" class="ml-2" @click="showDialog = true">
+          Add Media
+        </v-btn>
+      </v-card-title>
 
-    <!-- MEDIA GRID -->
+    <v-divider />
+
     <v-card-text>
       <v-row v-if="media.length">
         <v-col
@@ -219,23 +234,16 @@ onBeforeUnmount(() => editor.destroy());
               allowfullscreen
             />
 
-            <audio
-              v-if="m.type === 'AUDIO'"
-              controls
-              :src="m.url"
-              class="w-100"
-            />
-
             <v-card-title class="text-subtitle-1">
               {{ m.title }}
             </v-card-title>
 
-            <v-card-subtitle v-html="m.description"/>
+            <v-card-subtitle v-html="m.description" />
 
             <v-card-actions>
-              <v-spacer/>
+              <v-spacer />
               <v-btn icon color="red" @click="removeMedia(m)">
-              <v-icon>mdi-delete</v-icon>
+                <v-icon>mdi-delete</v-icon>
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -247,7 +255,15 @@ onBeforeUnmount(() => editor.destroy());
       </v-alert>
     </v-card-text>
 
-    <!-- ADD MEDIA DIALOG -->
+    <v-card-actions class="justify-end">
+      <v-pagination
+        v-if="totalItems > itemsPerPage"
+        v-model="page"
+        :length="Math.ceil(totalItems / itemsPerPage)"
+        @update:modelValue="onPageChange"
+      />
+    </v-card-actions>
+
     <v-dialog v-model="showDialog" max-width="600" :persistent="saving">
       <v-card>
         <v-card-title>Add Media</v-card-title>
@@ -255,7 +271,7 @@ onBeforeUnmount(() => editor.destroy());
         <v-card-text>
           <v-select
             label="Media Type"
-            :items="['IMAGE', 'VIDEO', 'AUDIO']"
+            :items="['IMAGE', 'VIDEO']"
             v-model="type"
             class="mb-4"
           />
@@ -266,13 +282,11 @@ onBeforeUnmount(() => editor.destroy());
             class="mb-4"
           />
 
-          <!-- Description Section -->
           <div class="mb-6">
             <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
               Description
             </label>
 
-            <!-- TipTap Toolbar -->
             <div class="editor-toolbar mb-2">
               <v-btn size="small" icon @click="editor.chain().focus().toggleBold().run()">
                 <v-icon>mdi-format-bold</v-icon>
@@ -292,27 +306,25 @@ onBeforeUnmount(() => editor.destroy());
               </v-btn>
             </div>
 
-            <!-- TipTap Editor -->
             <div class="tiptap-wrapper">
-              <EditorContent :editor="editor"/>
+              <EditorContent :editor="editor" />
             </div>
           </div>
 
-          <!-- File/URL Input Section -->
           <div class="mt-6">
             <v-file-input
-              v-if="type === 'IMAGE' || type === 'AUDIO'"
-              label="Select File"
+              v-if="type === 'IMAGE'"
+              label="Select Image"
               v-model="file"
               prepend-icon="mdi-paperclip"
               variant="outlined"
             />
 
             <v-text-field
-              v-if="type === 'VIDEO'"
-              label="YouTube URL"
+              v-else
+              label="Media URL"
               v-model="url"
-              prepend-icon="mdi-youtube"
+              prepend-icon="mdi-link-variant"
               variant="outlined"
             />
           </div>
@@ -320,11 +332,20 @@ onBeforeUnmount(() => editor.destroy());
 
         <v-card-actions>
           <v-btn text @click="showDialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="saving" :disabled="saving" @click="saveMedia">{{ saving ? "Saving…" : "Save" }}</v-btn>
+          <v-btn
+            color="primary"
+            :loading="saving"
+            :disabled="saving"
+            @click="saveMedia"
+          >
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-card>
+    </v-card>
+  </v-container>
+
   <v-dialog v-model="deleteDialog" max-width="400">
     <v-card>
       <v-card-title class="text-h6">
@@ -347,7 +368,6 @@ onBeforeUnmount(() => editor.destroy());
       </v-card-actions>
     </v-card>
   </v-dialog>
-
 </template>
 
 <style scoped>

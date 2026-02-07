@@ -1,4 +1,12 @@
 <template>
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    timeout="3000"
+  >
+    {{ snackbarText }}
+  </v-snackbar>
+
   <v-container>
     <h2>Program Builder</h2>
 
@@ -82,8 +90,17 @@ const selectedWorkout = ref(null);
 const dayNumber = ref(1);
 const dayOptions = Array.from({ length: 90 }, (_, i) => i + 1);
 const saving = ref(false);
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
-const loadData = async () => {
+const showSnackbar = (message, color = "success") => {
+  snackbarText.value = message;
+  snackbarColor.value = color;
+  snackbar.value = true;
+};
+
+const loadData = async ({ notify = false } = {}) => {
   const w = await getWorkouts();
   workouts.value = Array.isArray(w.data)
     ? w.data
@@ -97,6 +114,10 @@ const loadData = async () => {
     : Array.isArray(r.data?.content)
       ? r.data.content
       : [];
+
+  if (notify) {
+    showSnackbar("Program routine loaded");
+  }
 };
 
 const selectWorkout = (w) => {
@@ -114,7 +135,8 @@ const addToProgram = async () => {
       dayNumber: Number(dayNumber.value),
     });
 
-    await loadData();
+    await loadData({ notify: false });
+    showSnackbar("Workout added to day");
   } finally {
     saving.value = false;
   }
@@ -122,8 +144,9 @@ const addToProgram = async () => {
 
 const remove = async (id) => {
   await removeProgramWorkout(id);
-  loadData();
+  loadData({ notify: false });
+  showSnackbar("Workout removed");
 };
 
-onMounted(loadData);
+onMounted(() => loadData({ notify: false }));
 </script>

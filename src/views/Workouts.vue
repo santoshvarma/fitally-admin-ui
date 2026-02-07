@@ -1,4 +1,12 @@
 <template>
+  <v-snackbar
+    v-model="snackbar"
+    :color="snackbarColor"
+    timeout="3000"
+  >
+    {{ snackbarText }}
+  </v-snackbar>
+
   <v-card>
     <v-card-title class="d-flex align-center">
       <span class="text-h6">
@@ -13,7 +21,7 @@
           <v-btn
             v-bind="props"
             icon
-            @click="loadWorkouts"
+            @click="refresh"
             :loading="loading"
           >
             <v-icon>mdi-refresh</v-icon>
@@ -50,19 +58,29 @@
       </template>
 
       <template #item.actions="{ item }">
-        <v-btn
-          icon="mdi-pencil"
-          size="small"
-          variant="text"
-          @click="openEdit(item)"
-        />
-        <v-btn
-          icon="mdi-delete"
-          size="small"
-          variant="text"
-          color="red"
-          @click="remove(item.id)"
-        />
+        <v-tooltip text="Edit Workout" location="top">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon="mdi-pencil"
+              size="small"
+              variant="text"
+              @click="openEdit(item)"
+            />
+          </template>
+        </v-tooltip>
+        <v-tooltip text="Delete Workout" location="top">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon="mdi-delete"
+              size="small"
+              variant="text"
+              color="red"
+              @click="remove(item.id)"
+            />
+          </template>
+        </v-tooltip>
       </template>
     </v-data-table-server>
   </v-card>
@@ -70,7 +88,7 @@
   <WorkoutForm
     v-model="dialog"
     :workout="selected"
-    @saved="loadWorkouts"
+    @saved="saved"
   />
 </template>
 
@@ -88,6 +106,9 @@ const page = ref(1);
 const itemsPerPage = ref(20);
 const sortBy = ref([]);
 const totalItems = ref(0);
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
 const headers = [
   { title: "Title", key: "title" },
@@ -128,7 +149,13 @@ const normalizeList = (payload) => {
   return [];
 };
 
-const loadWorkouts = async () => {
+const showSnackbar = (message, color = "success") => {
+  snackbarText.value = message;
+  snackbarColor.value = color;
+  snackbar.value = true;
+};
+
+const loadWorkouts = async ({ notify = false } = {}) => {
   loading.value = true;
   try {
     const res = await getWorkouts({
@@ -142,6 +169,9 @@ const loadWorkouts = async () => {
       typeof res.data?.totalElements === "number"
         ? res.data.totalElements
         : list.length;
+    if (notify) {
+      showSnackbar("Workouts loaded");
+    }
   } catch (e) {
     console.error("Failed to load workouts", e);
     workouts.value = [];
@@ -158,6 +188,10 @@ const updateOptions = (options) => {
   loadWorkouts();
 };
 
+const refresh = () => {
+  loadWorkouts({ notify: true });
+};
+
 const openCreate = () => {
   selected.value = null;
   dialog.value = true;
@@ -170,8 +204,14 @@ const openEdit = (workout) => {
 
 const remove = async (id) => {
   await deleteWorkout(id);
-  loadWorkouts();
+  loadWorkouts({ notify: false });
+  showSnackbar("Workout deleted");
 };
 
-onMounted(loadWorkouts);
+const saved = () => {
+  loadWorkouts({ notify: false });
+  showSnackbar("Workout saved");
+};
+
+onMounted(() => loadWorkouts({ notify: false }));
 </script>
