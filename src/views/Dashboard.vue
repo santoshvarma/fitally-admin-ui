@@ -7,7 +7,7 @@
           <div>
             <h1 class="text-h5 font-weight-bold">Dashboard</h1>
             <div class="text-body-2 text-medium-emphasis">
-              Overview of your fitness platform
+              Overview of your FitAlly complete platform
             </div>
           </div>
         </div>
