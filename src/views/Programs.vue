@@ -1,92 +1,89 @@
 <template>
-  <v-container fluid>
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <span class="text-h6">
-          <v-icon>mdi-calendar-check</v-icon>
-          Programs
+  <v-card>
+    <v-card-title class="d-flex align-center">
+      <span class="text-h6">
+        <v-icon>mdi-calendar-check</v-icon>
+        Programs
+      </span>
+
+      <v-spacer />
+
+      <v-tooltip text="Refresh Programs" location="top">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            @click="loadPrograms"
+            :loading="loading"
+          >
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+
+      <v-btn color="primary" class="ml-2" @click="openDialog">
+        Create Program
+      </v-btn>
+    </v-card-title>
+
+    <v-data-table-server
+      :headers="headers"
+      :items="programs"
+      :loading="loading"
+      :items-length="totalItems"
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      v-model:sort-by="sortBy"
+      @update:options="updateOptions"
+      loading-text="Loading programs..."
+      item-key="id"
+    >
+      <template #item.description="{ item }">
+        <span class="description-preview">
+          {{ previewText(item.description) }}
         </span>
+      </template>
 
-        <v-spacer />
+      <template #item.active="{ value }">
+        <v-chip :color="value ? 'green' : 'grey'" size="small">
+          {{ value ? "Active" : "Inactive" }}
+        </v-chip>
+      </template>
 
-        <v-tooltip text="Refresh Programs" location="top">
+      <template #item.actions="{ item }">
+        <v-tooltip text="Manage Program" location="top">
           <template #activator="{ props }">
-            <v-btn
-              v-bind="props"
-              icon
-              @click="loadPrograms"
-              :loading="loading"
-            >
-              <v-icon>mdi-refresh</v-icon>
+            <v-btn v-bind="props" icon @click="manage(item)">
+              <v-icon>mdi-cog</v-icon>
             </v-btn>
           </template>
         </v-tooltip>
 
-        <v-btn color="primary" class="ml-2" @click="openDialog">
-          Create Program
-        </v-btn>
-      </v-card-title>
+        <v-tooltip text="Edit Program" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon @click="edit(item)">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
 
-      <v-data-table-server
-        class="mt-2"
-        :headers="headers"
-        :items="programs"
-        :loading="loading"
-        :items-length="totalItems"
-        v-model:page="page"
-        v-model:items-per-page="itemsPerPage"
-        v-model:sort-by="sortBy"
-        @update:options="updateOptions"
-        loading-text="Loading programs..."
-        item-key="id"
-      >
-        <template #item.description="{ item }">
-          <span class="description-preview">
-            {{ previewText(item.description) }}
-          </span>
-        </template>
+        <v-tooltip text="Delete Program" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon @click="remove(item.id)">
+              <v-icon color="red">mdi-delete</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+      </template>
+    </v-data-table-server>
+  </v-card>
 
-        <template #item.active="{ value }">
-          <v-chip :color="value ? 'green' : 'grey'" size="small">
-            {{ value ? "Active" : "Inactive" }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <v-tooltip text="Manage Program" location="top">
-            <template #activator="{ props }">
-              <v-btn v-bind="props" icon @click="manage(item)">
-                <v-icon>mdi-cog</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-
-          <v-tooltip text="Edit Program" location="top">
-            <template #activator="{ props }">
-              <v-btn v-bind="props" icon @click="edit(item)">
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-
-          <v-tooltip text="Delete Program" location="top">
-            <template #activator="{ props }">
-              <v-btn v-bind="props" icon @click="remove(item.id)">
-                <v-icon color="red">mdi-delete</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-        </template>
-      </v-data-table-server>
-    </v-card>
-
-    <ProgramForm
-      v-if="showDialog"
-      :program="selected"
-      @close="closeDialog"
-      @saved="loadPrograms"
-    />
-  </v-container>
+  <ProgramForm
+    v-if="showDialog"
+    :program="selected"
+    @close="closeDialog"
+    @saved="loadPrograms"
+  />
 </template>
 
 <script setup>

@@ -1,80 +1,77 @@
 <template>
-  <v-container fluid>
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <span class="text-h6">
-          <v-icon>mdi-dumbbell</v-icon>
-          Workouts
+  <v-card>
+    <v-card-title class="d-flex align-center">
+      <span class="text-h6">
+        <v-icon>mdi-dumbbell</v-icon>
+        Workouts
+      </span>
+
+      <v-spacer />
+
+      <v-tooltip text="Refresh Workouts" location="top">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            @click="loadWorkouts"
+            :loading="loading"
+          >
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+
+      <v-btn color="primary" class="ml-2" @click="openCreate">
+        Add Workout
+      </v-btn>
+    </v-card-title>
+
+    <v-data-table-server
+      :headers="headers"
+      :items="workouts"
+      :loading="loading"
+      :items-length="totalItems"
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      v-model:sort-by="sortBy"
+      @update:options="updateOptions"
+      item-key="id"
+    >
+      <template #item.description="{ item }">
+        <span class="description-preview">
+          {{ previewText(item.description) }}
         </span>
+      </template>
 
-        <v-spacer />
+      <template #item.active="{ value }">
+        <v-chip :color="value ? 'green' : 'grey'" size="small">
+          {{ value ? "Active" : "Inactive" }}
+        </v-chip>
+      </template>
 
-        <v-tooltip text="Refresh Workouts" location="top">
-          <template #activator="{ props }">
-            <v-btn
-              v-bind="props"
-              icon
-              @click="loadWorkouts"
-              :loading="loading"
-            >
-              <v-icon>mdi-refresh</v-icon>
-            </v-btn>
-          </template>
-        </v-tooltip>
+      <template #item.actions="{ item }">
+        <v-btn
+          icon="mdi-pencil"
+          size="small"
+          variant="text"
+          @click="openEdit(item)"
+        />
+        <v-btn
+          icon="mdi-delete"
+          size="small"
+          variant="text"
+          color="red"
+          @click="remove(item.id)"
+        />
+      </template>
+    </v-data-table-server>
+  </v-card>
 
-        <v-btn color="primary" class="ml-2" @click="openCreate">
-          Add Workout
-        </v-btn>
-      </v-card-title>
-
-      <v-data-table-server
-        class="mt-2"
-        :headers="headers"
-        :items="workouts"
-        :loading="loading"
-        :items-length="totalItems"
-        v-model:page="page"
-        v-model:items-per-page="itemsPerPage"
-        v-model:sort-by="sortBy"
-        @update:options="updateOptions"
-        item-key="id"
-      >
-        <template #item.description="{ item }">
-          <span class="description-preview">
-            {{ previewText(item.description) }}
-          </span>
-        </template>
-
-        <template #item.active="{ value }">
-          <v-chip :color="value ? 'green' : 'grey'" size="small">
-            {{ value ? "Active" : "Inactive" }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <v-btn
-            icon="mdi-pencil"
-            size="small"
-            variant="text"
-            @click="openEdit(item)"
-          />
-          <v-btn
-            icon="mdi-delete"
-            size="small"
-            variant="text"
-            color="red"
-            @click="remove(item.id)"
-          />
-        </template>
-      </v-data-table-server>
-    </v-card>
-
-    <WorkoutForm
-      v-model="dialog"
-      :workout="selected"
-      @saved="loadWorkouts"
-    />
-  </v-container>
+  <WorkoutForm
+    v-model="dialog"
+    :workout="selected"
+    @saved="loadWorkouts"
+  />
 </template>
 
 <script setup>
