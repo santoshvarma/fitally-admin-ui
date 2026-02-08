@@ -129,6 +129,10 @@ User Profile
 - GET /api/profile
 - PUT /api/profile
 
+AI (Admin)
+- POST /api/admin/ai/generate-exercises
+- POST /api/admin/ai/generate-images/exercise/{exerciseId}
+
 AdminController (Note)
 -----------------------
 AdminController is mapped at /api/admin, but its endpoints also include /api/admin

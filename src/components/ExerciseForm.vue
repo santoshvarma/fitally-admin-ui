@@ -21,6 +21,20 @@ const form = ref({
    TipTap Editor
 --------------------------------------- */
 const editor = ref(null);
+const pendingExercise = ref(null);
+
+const applyExercise = (val) => {
+  if (!val) {
+    return;
+  }
+  form.value = {
+    title: val.title,
+    description: val.description,
+    equipmentType: val.equipmentType,
+    category: val.category,
+  };
+  editor.value?.commands.setContent(val.description || "");
+};
 
 onMounted(() => {
   editor.value = new Editor({
@@ -33,6 +47,10 @@ onMounted(() => {
       form.value.description = editor.getHTML();
     },
   });
+  if (pendingExercise.value) {
+    applyExercise(pendingExercise.value);
+    pendingExercise.value = null;
+  }
 });
 
 onBeforeUnmount(() => {
@@ -67,16 +85,14 @@ const fitnessCategories = [
 watch(
   () => props.exercise,
   (val) => {
-    if (val) {
-      form.value = {
-        title: val.title,
-        description: val.description,
-        equipmentType: val.equipmentType,
-        category: val.category,
-      };
-
-      editor.value?.commands.setContent(val.description || "");
+    if (!val) {
+      return;
     }
+    if (!editor.value) {
+      pendingExercise.value = val;
+      return;
+    }
+    applyExercise(val);
   },
   { immediate: true }
 );

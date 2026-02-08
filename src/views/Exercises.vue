@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { getAllExercises } from "@/api/exercises";
+import { generateExercises } from "@/api/ai";
 import ExerciseForm from "@/components/ExerciseForm.vue";
 import { previewText } from "@/utils/text-utils.js";
 
@@ -17,6 +18,14 @@ const totalItems = ref(0);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
+const showAiDialog = ref(false);
+const aiLoading = ref(false);
+const aiForm = ref({
+  category: "GYM",
+  equipmentType: "DUMBBELL",
+  difficulty: "BEGINNER",
+  count: 10,
+});
 
 const headers = [
   { title: "Title", key: "title" },
@@ -24,6 +33,18 @@ const headers = [
   { title: "Equipment", key: "equipmentType" },
   { title: "Category", key: "category" },
   { title: "Actions", key: "actions", sortable: false },
+];
+
+const categories = ["GYM", "YOGA", "PILATES", "MEDITATION", "HIIT", "ZUMBA"];
+const difficulties = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
+const equipmentTypes = [
+  "DUMBBELL",
+  "BARBELL",
+  "KETTLEBELL",
+  "MACHINE",
+  "BODYWEIGHT",
+  "HOME",
+  "NONE",
 ];
 
 
@@ -104,6 +125,10 @@ const create = () => {
   showForm.value = true;
 };
 
+const openAiDialog = () => {
+  showAiDialog.value = true;
+};
+
 const edit = (e) => {
   selected.value = e;
   showForm.value = true;
@@ -117,6 +142,25 @@ const saved = () => {
   showForm.value = false;
   load({ notify: false });
   showSnackbar("Exercise saved");
+};
+
+const submitAi = async () => {
+  aiLoading.value = true;
+  try {
+    const count = Math.max(1, Number(aiForm.value.count) || 1);
+    await generateExercises({
+      category: aiForm.value.category,
+      equipmentType: aiForm.value.equipmentType,
+      difficulty: aiForm.value.difficulty,
+      count,
+    });
+    showSnackbar("AI generation started");
+    showAiDialog.value = false;
+  } catch (e) {
+    showSnackbar("Failed to start AI generation", "error");
+  } finally {
+    aiLoading.value = false;
+  }
 };
 </script>
 
@@ -140,6 +184,19 @@ const saved = () => {
         <template #activator="{ props }">
           <v-btn v-bind="props" icon @click="refresh">
             <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+      <v-tooltip text="Generate Exercises with AI" location="top">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            color="secondary"
+            class="ml-2"
+            @click="openAiDialog"
+          >
+            <v-icon>mdi-robot-outline</v-icon>
           </v-btn>
         </template>
       </v-tooltip>
@@ -198,5 +255,40 @@ const saved = () => {
       @saved="saved"
       @close="showForm = false"
     />
+
+    <v-dialog v-model="showAiDialog" max-width="520">
+      <v-card>
+        <v-card-title>Generate Exercises with AI</v-card-title>
+        <v-card-text class="d-flex flex-column ga-4">
+          <v-select
+            label="Category"
+            :items="categories"
+            v-model="aiForm.category"
+          />
+          <v-select
+            label="Equipment Type"
+            :items="equipmentTypes"
+            v-model="aiForm.equipmentType"
+          />
+          <v-select
+            label="Difficulty"
+            :items="difficulties"
+            v-model="aiForm.difficulty"
+          />
+          <v-text-field
+            label="Count"
+            type="number"
+            min="1"
+            v-model="aiForm.count"
+          />
+        </v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn variant="text" @click="showAiDialog = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="aiLoading" @click="submitAi">
+            Start
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>

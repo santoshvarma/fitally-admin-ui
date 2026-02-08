@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, watch, onBeforeUnmount} from "vue";
+import {ref, onMounted, watch, onBeforeUnmount, computed} from "vue";
 import {useRoute} from "vue-router";
 import {Editor, EditorContent} from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
@@ -14,6 +14,7 @@ import {
   addYoutubeVideo,
   deleteMedia,
 } from "@/api/media";
+import { generateExerciseImages } from "@/api/ai";
 
 /* ---------------------------------------
    Route & State
@@ -24,6 +25,8 @@ const exerciseId = route.params.exerciseId;
 const media = ref([]);
 const loading = ref(false);
 const showDialog = ref(false);
+const showAiDialog = ref(false);
+const aiLoading = ref(false);
 
 /* ---------------------------------------
    Add Media Dialog State
@@ -46,6 +49,33 @@ const showSnackbar = (message, color = "success") => {
   snackbarColor.value = color;
   snackbar.value = true;
 };
+
+const groupedMedia = computed(() => {
+  const groups = new Map();
+  media.value.forEach((item) => {
+    const key = item.category || "UNCATEGORIZED";
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(item);
+  });
+  const priority = {
+    DEMO: 1,
+    COMMON_MISTAKE: 2,
+    SAFETY_TIP: 3,
+  };
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => {
+      const rankA = priority[a] ?? 999;
+      const rankB = priority[b] ?? 999;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b);
+    })
+    .map(([category, items]) => ({
+    category,
+    items,
+  }));
+});
 
 /* ---------------------------------------
    TipTap Editor
@@ -72,7 +102,12 @@ const loadMedia = async ({ notify = false } = {}) => {
   loading.value = true;
   try {
     const res = await getMediaByExercise(exerciseId);
-    media.value = res.data;
+    const payload = res.data;
+    media.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.content)
+        ? payload.content
+        : [];
     if (notify) {
       showSnackbar("Media loaded");
     }
@@ -136,6 +171,21 @@ const confirmDelete = async () => {
   }
 };
 
+const startAiGeneration = async () => {
+  if (aiLoading.value) return;
+
+  aiLoading.value = true;
+  try {
+    await generateExerciseImages(exerciseId);
+    showSnackbar("AI image generation started");
+    showAiDialog.value = false;
+  } catch (e) {
+    showSnackbar("Failed to start AI image generation", "error");
+  } finally {
+    aiLoading.value = false;
+  }
+};
+
 
 /* ---------------------------------------
    Helpers
@@ -184,7 +234,27 @@ onBeforeUnmount(() => editor.destroy());
 
       <v-spacer/>
 
-      <v-btn color="primary" @click="showDialog = true">
+      <v-tooltip text="Refresh Media" location="top">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" icon @click="loadMedia({ notify: true })">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+      <v-tooltip text="Generate AI Images" location="top">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            color="secondary"
+            class="ml-2"
+            @click="showAiDialog = true"
+          >
+            <v-icon>mdi-robot-outline</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+      <v-btn color="primary" class="ml-2" @click="showDialog = true">
         <v-icon start>mdi-plus</v-icon>
         Add Media
       </v-btn>
@@ -194,53 +264,63 @@ onBeforeUnmount(() => editor.destroy());
 
     <!-- MEDIA GRID -->
     <v-card-text>
-      <v-row v-if="media.length">
-        <v-col
-          v-for="m in media"
-          :key="m.id"
-          cols="12"
-          sm="6"
-          md="4"
-        >
-          <v-card rounded="lg" elevation="4">
-            <v-img
-              v-if="m.type === 'IMAGE'"
-              :src="m.url"
-              height="200"
-              cover
-            />
+      <div v-if="media.length">
+        <div v-for="group in groupedMedia" :key="group.category" class="mb-6">
+          <div class="d-flex align-center mb-3">
+            <div class="text-subtitle-1 font-weight-medium">
+              {{ group.category }}
+            </div>
+            <v-divider class="ml-4" />
+          </div>
+          <v-row>
+            <v-col
+              v-for="m in group.items"
+              :key="m.id"
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <v-card rounded="lg" elevation="4">
+                <v-img
+                  v-if="m.type === 'IMAGE'"
+                  :src="m.url"
+                  height="200"
+                  cover
+                />
 
-            <iframe
-              v-if="m.type === 'VIDEO'"
-              :src="getYoutubeEmbed(m.url)"
-              width="100%"
-              height="200"
-              frameborder="0"
-              allowfullscreen
-            />
+                <iframe
+                  v-if="m.type === 'VIDEO'"
+                  :src="getYoutubeEmbed(m.url)"
+                  width="100%"
+                  height="200"
+                  frameborder="0"
+                  allowfullscreen
+                />
 
-            <audio
-              v-if="m.type === 'AUDIO'"
-              controls
-              :src="m.url"
-              class="w-100"
-            />
+                <audio
+                  v-if="m.type === 'AUDIO'"
+                  controls
+                  :src="m.url"
+                  class="w-100"
+                />
 
-            <v-card-title class="text-subtitle-1">
-              {{ m.title }}
-            </v-card-title>
+                <v-card-title class="text-subtitle-1">
+                  {{ m.title }}
+                </v-card-title>
 
-            <v-card-subtitle v-html="m.description"/>
+                <v-card-subtitle v-html="m.description"/>
 
-            <v-card-actions>
-              <v-spacer/>
-              <v-btn icon color="red" @click="removeMedia(m)">
-              <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-col>
-      </v-row>
+                <v-card-actions>
+                  <v-spacer/>
+                  <v-btn icon color="red" @click="removeMedia(m)">
+                    <v-icon>mdi-delete</v-icon>
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-col>
+          </v-row>
+        </div>
+      </div>
 
       <v-alert v-else type="info" variant="tonal">
         No media added yet. Click <b>Add Media</b> to get started.
@@ -325,6 +405,21 @@ onBeforeUnmount(() => editor.destroy());
       </v-card>
     </v-dialog>
   </v-card>
+  <v-dialog v-model="showAiDialog" max-width="480">
+    <v-card>
+      <v-card-title>Generate AI Images</v-card-title>
+      <v-card-text>
+        This will generate images for this exercise using existing media
+        prompts (items with `ai://` URLs).
+      </v-card-text>
+      <v-card-actions class="justify-end">
+        <v-btn variant="text" @click="showAiDialog = false">Cancel</v-btn>
+        <v-btn color="primary" :loading="aiLoading" @click="startAiGeneration">
+          Start
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
   <v-dialog v-model="deleteDialog" max-width="400">
     <v-card>
       <v-card-title class="text-h6">
