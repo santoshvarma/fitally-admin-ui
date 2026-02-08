@@ -15,3 +15,6 @@ export const addYoutubeVideo = (exerciseId, data) =>
 
 export const deleteMedia = (id) =>
   api.delete(`/admin/media/${id}`);
+
+export const updateMedia = (id, data) =>
+  api.put(`/media/${id}`, data);

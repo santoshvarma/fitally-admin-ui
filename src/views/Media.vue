@@ -13,8 +13,9 @@ import {
   uploadImage,
   addYoutubeVideo,
   deleteMedia,
+  updateMedia,
 } from "@/api/media";
-import { generateExerciseImages } from "@/api/ai";
+import { generateExerciseImages, regenerateMediaImage } from "@/api/ai";
 
 /* ---------------------------------------
    Route & State
@@ -27,6 +28,10 @@ const loading = ref(false);
 const showDialog = ref(false);
 const showAiDialog = ref(false);
 const aiLoading = ref(false);
+const aiEditDialog = ref(false);
+const aiEditLoading = ref(false);
+const aiEditInstructions = ref("");
+const aiEditTarget = ref(null);
 
 /* ---------------------------------------
    Add Media Dialog State
@@ -36,9 +41,13 @@ const title = ref("");
 const description = ref(""); // HTML
 const file = ref(null);
 const url = ref("");
+const category = ref("");
+const sortOrder = ref(null);
 const saving = ref(false);
 const deleteDialog = ref(false);
 const mediaToDelete = ref(null);
+const editing = ref(false);
+const editTarget = ref(null);
 
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -71,10 +80,18 @@ const groupedMedia = computed(() => {
       if (rankA !== rankB) return rankA - rankB;
       return a.localeCompare(b);
     })
-    .map(([category, items]) => ({
-    category,
-    items,
-  }));
+    .map(([category, items]) => {
+      const sortedItems = [...items].sort((a, b) => {
+        const orderA = typeof a.sortOrder === "number" ? a.sortOrder : 9999;
+        const orderB = typeof b.sortOrder === "number" ? b.sortOrder : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.title || "").localeCompare(b.title || "");
+      });
+      return {
+        category,
+        items: sortedItems,
+      };
+    });
 });
 
 /* ---------------------------------------
@@ -124,21 +141,32 @@ const saveMedia = async () => {
 
   saving.value = true;
   try {
-    if (type.value === "IMAGE" || type.value === "AUDIO") {
-      const formData = new FormData();
-      formData.append("file", file.value);
-      formData.append("title", title.value);
-      formData.append("description", description.value);
-
-      await uploadImage(exerciseId, formData);
-    }
-
-    if (type.value === "VIDEO") {
-      await addYoutubeVideo(exerciseId, {
-        youtubeUrl: url.value,
+    if (editing.value && editTarget.value) {
+      await updateMedia(editTarget.value.id, {
         title: title.value,
         description: description.value,
+        url: url.value,
+        sortOrder: sortOrder.value,
+        type: type.value,
+        category: category.value || null,
       });
+    } else {
+      if (type.value === "IMAGE" || type.value === "AUDIO") {
+        const formData = new FormData();
+        formData.append("file", file.value);
+        formData.append("title", title.value);
+        formData.append("description", description.value);
+
+        await uploadImage(exerciseId, formData);
+      }
+
+      if (type.value === "VIDEO") {
+        await addYoutubeVideo(exerciseId, {
+          youtubeUrl: url.value,
+          title: title.value,
+          description: description.value,
+        });
+      }
     }
 
     resetForm();
@@ -186,6 +214,30 @@ const startAiGeneration = async () => {
   }
 };
 
+const openAiEdit = (item) => {
+  aiEditTarget.value = item;
+  aiEditInstructions.value = "";
+  aiEditDialog.value = true;
+};
+
+const submitAiEdit = async () => {
+  if (aiEditLoading.value || !aiEditTarget.value) return;
+
+  aiEditLoading.value = true;
+  try {
+    const instructions = aiEditInstructions.value.trim();
+    await regenerateMediaImage(aiEditTarget.value.id, {
+      ...(instructions ? { instructions } : {}),
+    });
+    showSnackbar("AI image regeneration started");
+    aiEditDialog.value = false;
+  } catch (e) {
+    showSnackbar("Failed to start AI regeneration", "error");
+  } finally {
+    aiEditLoading.value = false;
+  }
+};
+
 
 /* ---------------------------------------
    Helpers
@@ -196,9 +248,27 @@ const resetForm = () => {
   description.value = "";
   file.value = null;
   url.value = "";
+  category.value = "";
+  sortOrder.value = null;
+  editing.value = false;
+  editTarget.value = null;
   editor.commands.clearContent();
 };
 
+const openEdit = (item) => {
+  editing.value = true;
+  editTarget.value = item;
+  type.value = item.type || "IMAGE";
+  title.value = item.title || "";
+  description.value = item.description || "";
+  url.value = item.url || "";
+  category.value = item.category || "";
+  sortOrder.value =
+    typeof item.sortOrder === "number" ? item.sortOrder : null;
+  file.value = null;
+  editor.commands.setContent(item.description || "");
+  showDialog.value = true;
+};
 const getYoutubeEmbed = (videoUrl) => {
   if (!videoUrl) return "";
   const id = videoUrl.includes("v=")
@@ -206,6 +276,8 @@ const getYoutubeEmbed = (videoUrl) => {
     : videoUrl.split("/").pop();
   return `https://www.youtube.com/embed/${id}`;
 };
+
+const isAiPending = (item) => item?.url?.startsWith("ai://");
 
 watch(showDialog, (val) => {
   if (!val) editor.commands.clearContent();
@@ -282,11 +354,20 @@ onBeforeUnmount(() => editor.destroy());
             >
               <v-card rounded="lg" elevation="4">
                 <v-img
-                  v-if="m.type === 'IMAGE'"
+                  v-if="m.type === 'IMAGE' && !isAiPending(m)"
                   :src="m.url"
                   height="200"
-                  cover
+                  contain
                 />
+                <div
+                  v-else-if="m.type === 'IMAGE' && isAiPending(m)"
+                  class="ai-placeholder"
+                >
+                  <div class="text-caption">AI image not generated yet</div>
+                  <v-chip size="small" color="orange" variant="tonal" class="mt-2">
+                    Needs AI generation
+                  </v-chip>
+                </div>
 
                 <iframe
                   v-if="m.type === 'VIDEO'"
@@ -312,6 +393,20 @@ onBeforeUnmount(() => editor.destroy());
 
                 <v-card-actions>
                   <v-spacer/>
+                  <v-tooltip text="Edit Media" location="top">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon @click="openEdit(m)">
+                        <v-icon>mdi-pencil</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
+                  <v-tooltip text="AI Regenerate" location="top">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon @click="openAiEdit(m)">
+                        <v-icon>mdi-robot-outline</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                   <v-btn icon color="red" @click="removeMedia(m)">
                     <v-icon>mdi-delete</v-icon>
                   </v-btn>
@@ -330,7 +425,7 @@ onBeforeUnmount(() => editor.destroy());
     <!-- ADD MEDIA DIALOG -->
     <v-dialog v-model="showDialog" max-width="600" :persistent="saving">
       <v-card>
-        <v-card-title>Add Media</v-card-title>
+        <v-card-title>{{ editing ? "Edit Media" : "Add Media" }}</v-card-title>
 
         <v-card-text>
           <v-select
@@ -343,6 +438,20 @@ onBeforeUnmount(() => editor.destroy());
           <v-text-field
             label="Title"
             v-model="title"
+            class="mb-4"
+          />
+          <v-text-field
+            label="Sort Order"
+            type="number"
+            min="0"
+            v-model="sortOrder"
+            class="mb-4"
+          />
+          <v-select
+            label="Category"
+            :items="['DEMO', 'COMMON_MISTAKE', 'SAFETY_TIP']"
+            v-model="category"
+            clearable
             class="mb-4"
           />
 
@@ -386,6 +495,7 @@ onBeforeUnmount(() => editor.destroy());
               v-model="file"
               prepend-icon="mdi-paperclip"
               variant="outlined"
+              :disabled="editing"
             />
 
             <v-text-field
@@ -394,6 +504,7 @@ onBeforeUnmount(() => editor.destroy());
               v-model="url"
               prepend-icon="mdi-youtube"
               variant="outlined"
+              :disabled="editing"
             />
           </div>
         </v-card-text>
@@ -409,12 +520,32 @@ onBeforeUnmount(() => editor.destroy());
     <v-card>
       <v-card-title>Generate AI Images</v-card-title>
       <v-card-text>
-        This will generate images for this exercise using existing media
-        prompts (items with `ai://` URLs).
+        This will generate and update all the images in this exercise.
       </v-card-text>
       <v-card-actions class="justify-end">
         <v-btn variant="text" @click="showAiDialog = false">Cancel</v-btn>
         <v-btn color="primary" :loading="aiLoading" @click="startAiGeneration">
+          Start
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+  <v-dialog v-model="aiEditDialog" max-width="520">
+    <v-card>
+      <v-card-title>Regenerate Media Image</v-card-title>
+      <v-card-text>
+        <div class="text-body-2 mb-3">
+          Optional instructions to tweak the image prompt.
+        </div>
+        <v-textarea
+          label="Instructions"
+          rows="3"
+          v-model="aiEditInstructions"
+        />
+      </v-card-text>
+      <v-card-actions class="justify-end">
+        <v-btn variant="text" @click="aiEditDialog = false">Cancel</v-btn>
+        <v-btn color="primary" :loading="aiEditLoading" @click="submitAiEdit">
           Start
         </v-btn>
       </v-card-actions>
@@ -446,4 +577,13 @@ onBeforeUnmount(() => editor.destroy());
 </template>
 
 <style scoped>
+.ai-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #e0e0e0;
+  color: #666;
+}
 </style>

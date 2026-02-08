@@ -7,6 +7,7 @@ Request:
   "title": "Bench Press",
   "description": "Chest compound movement",
   "equipmentType": "MACHINE",
+  "muscleGroup": "CHEST",
   "category": "GYM",
   "active": true
 }
@@ -18,6 +19,7 @@ Response:
   "title": "Bench Press",
   "description": "Chest compound movement",
   "equipmentType": "MACHINE",
+  "muscleGroup": "CHEST",
   "category": "GYM",
   "active": true
 }
@@ -34,6 +36,7 @@ Response:
       "title": "Bench Press",
       "description": "Chest compound movement",
       "equipmentType": "MACHINE",
+      "muscleGroup": "CHEST",
       "category": "GYM",
       "active": true
     }
@@ -55,6 +58,7 @@ Response:
   "title": "Bench Press",
   "description": "Chest compound movement",
   "equipmentType": "MACHINE",
+  "muscleGroup": "CHEST",
   "category": "GYM",
   "active": true
 }
@@ -71,6 +75,7 @@ Response:
       "title": "Bench Press",
       "description": "Chest compound movement",
       "equipmentType": "MACHINE",
+      "muscleGroup": "CHEST",
       "category": "GYM",
       "active": true
     }
@@ -91,6 +96,7 @@ Request:
   "title": "Bench Press",
   "description": "Updated description",
   "equipmentType": "MACHINE",
+  "muscleGroup": "CHEST",
   "category": "GYM",
   "active": true
 }
@@ -102,6 +108,7 @@ Response:
   "title": "Bench Press",
   "description": "Updated description",
   "equipmentType": "MACHINE",
+  "muscleGroup": "CHEST",
   "category": "GYM",
   "active": true
 }
@@ -109,4 +116,29 @@ Response:
 
 DELETE /api/exercises/{id}
 Response: 200 OK
+
+GET /api/exercises/search?muscleGroup=CHEST
+Query params: pageNumber, pageSize, sortBy, sortDir
+Response:
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "title": "Bench Press",
+      "description": "Chest compound movement",
+      "equipmentType": "MACHINE",
+      "muscleGroup": "CHEST",
+      "category": "GYM",
+      "active": true
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": true
+}
+```
 

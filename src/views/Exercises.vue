@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getAllExercises } from "@/api/exercises";
+import { getAllExercises, deleteExercise } from "@/api/exercises";
 import { generateExercises } from "@/api/ai";
 import ExerciseForm from "@/components/ExerciseForm.vue";
 import { previewText } from "@/utils/text-utils.js";
@@ -21,11 +21,13 @@ const snackbarColor = ref("success");
 const showAiDialog = ref(false);
 const aiLoading = ref(false);
 const aiForm = ref({
+  title: "",
   category: "GYM",
   equipmentType: "DUMBBELL",
   difficulty: "BEGINNER",
   count: 10,
 });
+const countDisabled = computed(() => !!aiForm.value.title?.trim());
 
 const headers = [
   { title: "Title", key: "title" },
@@ -119,6 +121,14 @@ const refresh = () => {
 };
 
 onMounted(() => load({ notify: false }));
+watch(
+  () => aiForm.value.title,
+  (value) => {
+    if (value?.trim()) {
+      aiForm.value.count = 1;
+    }
+  }
+);
 
 const create = () => {
   selected.value = null;
@@ -132,6 +142,12 @@ const openAiDialog = () => {
 const edit = (e) => {
   selected.value = e;
   showForm.value = true;
+};
+
+const remove = async (id) => {
+  await deleteExercise(id);
+  load({ notify: false });
+  showSnackbar("Exercise deleted");
 };
 
 const openMedia = (id) => {
@@ -148,7 +164,9 @@ const submitAi = async () => {
   aiLoading.value = true;
   try {
     const count = Math.max(1, Number(aiForm.value.count) || 1);
+    const title = aiForm.value.title?.trim();
     await generateExercises({
+      ...(title ? { title } : {}),
       category: aiForm.value.category,
       equipmentType: aiForm.value.equipmentType,
       difficulty: aiForm.value.difficulty,
@@ -232,17 +250,38 @@ const submitAi = async () => {
       <template #item.actions="{ item }">
         <v-tooltip text="Edit Exercise" location="top">
           <template #activator="{ props }">
-            <v-btn v-bind="props" icon @click="edit(item)">
-              <v-icon>mdi-pencil</v-icon>
-            </v-btn>
+            <v-btn
+              v-bind="props"
+              icon="mdi-pencil"
+              size="small"
+              variant="text"
+              @click="edit(item)"
+            />
           </template>
         </v-tooltip>
 
         <v-tooltip text="Manage Media" location="top">
           <template #activator="{ props }">
-            <v-btn v-bind="props" icon @click="openMedia(item.id)">
-              <v-icon>mdi-image</v-icon>
-            </v-btn>
+            <v-btn
+              v-bind="props"
+              icon="mdi-image"
+              size="small"
+              variant="text"
+              @click="openMedia(item.id)"
+            />
+          </template>
+        </v-tooltip>
+
+        <v-tooltip text="Delete Exercise" location="top">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon="mdi-delete"
+              size="small"
+              variant="text"
+              color="red"
+              @click="remove(item.id)"
+            />
           </template>
         </v-tooltip>
       </template>
@@ -265,6 +304,12 @@ const submitAi = async () => {
             :items="categories"
             v-model="aiForm.category"
           />
+          <v-text-field
+            label="Title"
+            v-model="aiForm.title"
+            hint="Optional: seed the AI with a specific exercise title"
+            persistent-hint
+          />
           <v-select
             label="Equipment Type"
             :items="equipmentTypes"
@@ -280,6 +325,7 @@ const submitAi = async () => {
             type="number"
             min="1"
             v-model="aiForm.count"
+            :disabled="countDisabled"
           />
         </v-card-text>
         <v-card-actions class="justify-end">
@@ -290,5 +336,6 @@ const submitAi = async () => {
         </v-card-actions>
       </v-card>
     </v-dialog>
+
   </v-card>
 </template>

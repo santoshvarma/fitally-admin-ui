@@ -26,7 +26,7 @@ Fitness content
   - category, difficulty, equipmentType, equipmentRequired, active
   - 1..n WorkoutExercise (ordered by sortOrder)
 - Exercise
-  - title, description, equipmentType, category, active
+  - title, description, equipmentType, category, muscleGroup, active
   - 1..n Media
 - Media
   - title, description, url, type (IMAGE, VIDEO, AUDIO), metadata (jsonb)
@@ -56,6 +56,7 @@ Fitness
 - EquipmentType (DUMBBELL, BARBELL, KETTLEBELL, MACHINE, BODYWEIGHT, HOME, NONE)
 - DifficultyLevel (BEGINNER, INTERMEDIATE, ADVANCED)
 - MediaType (IMAGE, VIDEO, AUDIO)
+- MuscleGroup (CHEST, BACK, LATS, TRAPS, SHOULDERS, BICEPS, TRICEPS, FOREARMS, ABS, OBLIQUES, LOWER_BACK, GLUTES, QUADS, HAMSTRINGS, CALVES, HIP_FLEXORS, ADDUCTORS, ABDUCTORS, FULL_BODY)
 
 CMS
 - ContentType (HOME_BANNER, FEATURED_SECTION, PAGE, ARTICLE, PROMOTION, HEADER, FOOTER)
@@ -77,6 +78,7 @@ Health
 Exercises
 - POST /api/exercises
 - GET /api/exercises
+- GET /api/exercises/search?muscleGroup=
 - GET /api/exercises/{exerciseId}
 - GET /api/exercises/workout/{workoutId}
 - PUT /api/exercises/{id}
@@ -132,6 +134,7 @@ User Profile
 AI (Admin)
 - POST /api/admin/ai/generate-exercises
 - POST /api/admin/ai/generate-images/exercise/{exerciseId}
+- POST /api/admin/ai/generate-image/media/{mediaId}
 
 AdminController (Note)
 -----------------------
