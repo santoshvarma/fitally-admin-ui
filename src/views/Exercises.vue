@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { getAllExercises, deleteExercise } from "@/api/exercises";
-import { generateExercises } from "@/api/ai";
+import { generateExercises, streamAiJob } from "@/api/ai";
 import ExerciseForm from "@/components/ExerciseForm.vue";
 import { previewText } from "@/utils/text-utils.js";
 
@@ -20,6 +20,9 @@ const snackbarText = ref("");
 const snackbarColor = ref("success");
 const showAiDialog = ref(false);
 const aiLoading = ref(false);
+const aiJobStatus = ref(null);
+const aiJobController = ref(null);
+const aiJobRetryTimeout = ref(null);
 const aiForm = ref({
   title: "",
   category: "GYM",
@@ -129,6 +132,12 @@ watch(
     }
   }
 );
+onBeforeUnmount(() => {
+  aiJobController.value?.abort();
+  if (aiJobRetryTimeout.value) {
+    clearTimeout(aiJobRetryTimeout.value);
+  }
+});
 
 const create = () => {
   selected.value = null;
@@ -165,20 +174,56 @@ const submitAi = async () => {
   try {
     const count = Math.max(1, Number(aiForm.value.count) || 1);
     const title = aiForm.value.title?.trim();
-    await generateExercises({
+    const res = await generateExercises({
       ...(title ? { title } : {}),
       category: aiForm.value.category,
       equipmentType: aiForm.value.equipmentType,
       difficulty: aiForm.value.difficulty,
       count,
     });
-    showSnackbar("AI generation started");
+    const jobId = res.data?.jobId;
+    showSnackbar(res.data?.message || "AI generation started");
+    if (jobId) {
+      startAiStream(jobId);
+    }
     showAiDialog.value = false;
   } catch (e) {
     showSnackbar("Failed to start AI generation", "error");
   } finally {
     aiLoading.value = false;
   }
+};
+
+const isTerminalState = (state) =>
+  ["COMPLETED", "FAILED", "CANCELLED"].includes(state);
+
+const startAiStream = (jobId) => {
+  aiJobController.value?.abort();
+  if (aiJobRetryTimeout.value) {
+    clearTimeout(aiJobRetryTimeout.value);
+    aiJobRetryTimeout.value = null;
+  }
+  aiJobController.value = new AbortController();
+  console.info("[AI SSE] Exercises stream start", { jobId });
+  streamAiJob(jobId, {
+    signal: aiJobController.value.signal,
+    onMessage: (data) => {
+      aiJobStatus.value = data;
+      console.info("[AI SSE] Exercises status update", data);
+      if (isTerminalState(data?.state)) {
+        aiJobController.value?.abort();
+      }
+    },
+    onError: () => {
+      console.error("[AI SSE] Exercises stream error");
+      showSnackbar("AI status stream disconnected", "error");
+      if (!isTerminalState(aiJobStatus.value?.state)) {
+        aiJobRetryTimeout.value = setTimeout(() => {
+          startAiStream(jobId);
+        }, 2000);
+      }
+    },
+  }).catch(() => {});
 };
 </script>
 
@@ -228,6 +273,17 @@ const submitAi = async () => {
       </v-btn>
     </v-card-title>
 
+    <v-alert
+      v-if="aiJobStatus"
+      type="info"
+      variant="tonal"
+      class="mx-4 my-2"
+    >
+      <div class="text-body-2">
+        AI Status: {{ aiJobStatus.state }} ({{ aiJobStatus.completed ?? 0 }}/{{ aiJobStatus.total ?? 0 }})
+      </div>
+      <div class="text-caption">{{ aiJobStatus.message }}</div>
+    </v-alert>
 
 
     <v-data-table-server

@@ -15,7 +15,7 @@ import {
   deleteMedia,
   updateMedia,
 } from "@/api/media";
-import { generateExerciseImages, regenerateMediaImage } from "@/api/ai";
+import { generateExerciseImages, regenerateMediaImage, streamAiJob } from "@/api/ai";
 
 /* ---------------------------------------
    Route & State
@@ -31,7 +31,12 @@ const aiLoading = ref(false);
 const aiEditDialog = ref(false);
 const aiEditLoading = ref(false);
 const aiEditInstructions = ref("");
+const aiEditOriginalPrompt = ref("");
 const aiEditTarget = ref(null);
+const aiEditValid = computed(() => !!aiEditInstructions.value.trim());
+const aiJobStatus = ref(null);
+const aiJobController = ref(null);
+const aiJobRetryTimeout = ref(null);
 
 /* ---------------------------------------
    Add Media Dialog State
@@ -69,6 +74,7 @@ const groupedMedia = computed(() => {
     groups.get(key).push(item);
   });
   const priority = {
+    FOCUS_AREA: 0,
     DEMO: 1,
     COMMON_MISTAKE: 2,
     SAFETY_TIP: 3,
@@ -204,8 +210,12 @@ const startAiGeneration = async () => {
 
   aiLoading.value = true;
   try {
-    await generateExerciseImages(exerciseId);
-    showSnackbar("AI image generation started");
+    const res = await generateExerciseImages(exerciseId);
+    const jobId = res.data?.jobId;
+    showSnackbar(res.data?.message || "AI image generation started");
+    if (jobId) {
+      startAiStream(jobId);
+    }
     showAiDialog.value = false;
   } catch (e) {
     showSnackbar("Failed to start AI image generation", "error");
@@ -214,28 +224,84 @@ const startAiGeneration = async () => {
   }
 };
 
+const extractImagePrompt = (item) => {
+  const meta = item?.metadata;
+  if (meta && typeof meta === "string") {
+    try {
+      const parsed = JSON.parse(meta);
+      return parsed?.imagePrompt || parsed?.image_prompt || "";
+    } catch {
+      return "";
+    }
+  }
+  return (
+    meta?.imagePrompt ||
+    meta?.image_prompt ||
+    item?.imagePrompt ||
+    ""
+  );
+};
+
 const openAiEdit = (item) => {
   aiEditTarget.value = item;
-  aiEditInstructions.value = "";
+  aiEditOriginalPrompt.value = extractImagePrompt(item);
+  aiEditInstructions.value = aiEditOriginalPrompt.value;
   aiEditDialog.value = true;
 };
 
 const submitAiEdit = async () => {
   if (aiEditLoading.value || !aiEditTarget.value) return;
+  if (!aiEditValid.value) return;
 
   aiEditLoading.value = true;
   try {
     const instructions = aiEditInstructions.value.trim();
-    await regenerateMediaImage(aiEditTarget.value.id, {
-      ...(instructions ? { instructions } : {}),
+    const res = await regenerateMediaImage(aiEditTarget.value.id, {
+      imagePrompt: instructions,
     });
-    showSnackbar("AI image regeneration started");
+    const jobId = res.data?.jobId;
+    showSnackbar(res.data?.message || "AI image regeneration started");
+    if (jobId) {
+      startAiStream(jobId);
+    }
     aiEditDialog.value = false;
   } catch (e) {
     showSnackbar("Failed to start AI regeneration", "error");
   } finally {
     aiEditLoading.value = false;
   }
+};
+
+const isTerminalState = (state) =>
+  ["COMPLETED", "FAILED", "CANCELLED"].includes(state);
+
+const startAiStream = (jobId) => {
+  aiJobController.value?.abort();
+  if (aiJobRetryTimeout.value) {
+    clearTimeout(aiJobRetryTimeout.value);
+    aiJobRetryTimeout.value = null;
+  }
+  aiJobController.value = new AbortController();
+  console.info("[AI SSE] Media stream start", { jobId });
+  streamAiJob(jobId, {
+    signal: aiJobController.value.signal,
+    onMessage: (data) => {
+      aiJobStatus.value = data;
+      console.info("[AI SSE] Media status update", data);
+      if (isTerminalState(data?.state)) {
+        aiJobController.value?.abort();
+      }
+    },
+    onError: () => {
+      console.error("[AI SSE] Media stream error");
+      showSnackbar("AI status stream disconnected", "error");
+      if (!isTerminalState(aiJobStatus.value?.state)) {
+        aiJobRetryTimeout.value = setTimeout(() => {
+          startAiStream(jobId);
+        }, 2000);
+      }
+    },
+  }).catch(() => {});
 };
 
 
@@ -284,7 +350,13 @@ watch(showDialog, (val) => {
 });
 
 onMounted(loadMedia);
-onBeforeUnmount(() => editor.destroy());
+onBeforeUnmount(() => {
+  aiJobController.value?.abort();
+  if (aiJobRetryTimeout.value) {
+    clearTimeout(aiJobRetryTimeout.value);
+  }
+  editor.destroy();
+});
 </script>
 
 <template>
@@ -331,6 +403,18 @@ onBeforeUnmount(() => editor.destroy());
         Add Media
       </v-btn>
     </v-card-title>
+
+    <v-alert
+      v-if="aiJobStatus"
+      type="info"
+      variant="tonal"
+      class="mx-4 my-2"
+    >
+      <div class="text-body-2">
+        AI Status: {{ aiJobStatus.state }} ({{ aiJobStatus.completed ?? 0 }}/{{ aiJobStatus.total ?? 0 }})
+      </div>
+      <div class="text-caption">{{ aiJobStatus.message }}</div>
+    </v-alert>
 
     <v-divider/>
 
@@ -489,6 +573,12 @@ onBeforeUnmount(() => editor.destroy());
 
           <!-- File/URL Input Section -->
           <div class="mt-6">
+            <div v-if="editing && type === 'IMAGE' && url" class="mb-4">
+              <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
+                Current Image
+              </label>
+              <v-img :src="url" height="160" cover />
+            </div>
             <v-file-input
               v-if="type === 'IMAGE' || type === 'AUDIO'"
               label="Select File"
@@ -498,6 +588,18 @@ onBeforeUnmount(() => editor.destroy());
               :disabled="editing"
             />
 
+            <div v-if="editing && type === 'VIDEO' && url" class="mb-4">
+              <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
+                Current Video
+              </label>
+              <iframe
+                :src="getYoutubeEmbed(url)"
+                width="100%"
+                height="160"
+                frameborder="0"
+                allowfullscreen
+              />
+            </div>
             <v-text-field
               v-if="type === 'VIDEO'"
               label="YouTube URL"
@@ -535,17 +637,22 @@ onBeforeUnmount(() => editor.destroy());
       <v-card-title>Regenerate Media Image</v-card-title>
       <v-card-text>
         <div class="text-body-2 mb-3">
-          Optional instructions to tweak the image prompt.
+          Update the image prompt for this media item.
         </div>
         <v-textarea
-          label="Instructions"
+          label="Image Prompt"
           rows="3"
           v-model="aiEditInstructions"
         />
       </v-card-text>
       <v-card-actions class="justify-end">
         <v-btn variant="text" @click="aiEditDialog = false">Cancel</v-btn>
-        <v-btn color="primary" :loading="aiEditLoading" @click="submitAiEdit">
+        <v-btn
+          color="primary"
+          :loading="aiEditLoading"
+          :disabled="!aiEditValid"
+          @click="submitAiEdit"
+        >
           Start
         </v-btn>
       </v-card-actions>

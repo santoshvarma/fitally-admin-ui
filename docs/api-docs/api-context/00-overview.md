@@ -135,6 +135,8 @@ AI (Admin)
 - POST /api/admin/ai/generate-exercises
 - POST /api/admin/ai/generate-images/exercise/{exerciseId}
 - POST /api/admin/ai/generate-image/media/{mediaId}
+- GET /api/admin/ai/jobs/{jobId}
+- GET /api/admin/ai/jobs/{jobId}/events
 
 AdminController (Note)
 -----------------------
