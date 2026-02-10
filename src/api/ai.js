@@ -62,6 +62,10 @@ export const streamAiJob = async (jobId, { onMessage, onError, signal } = {}) =>
       });
       await read();
     } catch (e) {
+      if (e?.name === "AbortError" || signal?.aborted) {
+        console.info("[AI SSE] Stream aborted", { jobId });
+        return;
+      }
       console.error("[AI SSE] Read error", e);
       if (onError) onError(e);
       throw e;

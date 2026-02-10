@@ -343,7 +343,8 @@ const getYoutubeEmbed = (videoUrl) => {
   return `https://www.youtube.com/embed/${id}`;
 };
 
-const isAiPending = (item) => item?.url?.startsWith("ai://");
+const isAiUrl = (value) => value?.startsWith("ai://");
+const isAiPending = (item) => isAiUrl(item?.url);
 
 watch(showDialog, (val) => {
   if (!val) editor.commands.clearContent();
@@ -573,7 +574,10 @@ onBeforeUnmount(() => {
 
           <!-- File/URL Input Section -->
           <div class="mt-6">
-            <div v-if="editing && type === 'IMAGE' && url" class="mb-4">
+            <div
+              v-if="editing && type === 'IMAGE' && url && !isAiUrl(url)"
+              class="mb-4"
+            >
               <label class="text-subtitle-2 font-weight-medium mb-2 d-block">
                 Current Image
               </label>
