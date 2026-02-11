@@ -273,7 +273,15 @@ const submitAiEdit = async () => {
 };
 
 const isTerminalState = (state) =>
-  ["COMPLETED", "FAILED", "CANCELLED"].includes(state);
+  ["COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCELLED"].includes(state);
+
+const aiStatusType = computed(() => {
+  if (!aiJobStatus.value?.state) return "info";
+  if (aiJobStatus.value.state === "COMPLETED") return "success";
+  if (aiJobStatus.value.state === "COMPLETED_WITH_ERRORS") return "warning";
+  if (aiJobStatus.value.state === "FAILED") return "error";
+  return "info";
+});
 
 const startAiStream = (jobId) => {
   aiJobController.value?.abort();
@@ -407,7 +415,7 @@ onBeforeUnmount(() => {
 
     <v-alert
       v-if="aiJobStatus"
-      type="info"
+      :type="aiStatusType"
       variant="tonal"
       class="mx-4 my-2"
     >
