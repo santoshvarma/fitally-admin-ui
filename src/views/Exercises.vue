@@ -18,6 +18,10 @@ const totalItems = ref(0);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
+const deleteDialog = ref(false);
+const exerciseToDelete = ref(null);
+const deleting = ref(false);
+const deletingExerciseId = ref(null);
 const showAiDialog = ref(false);
 const aiLoading = ref(false);
 const aiJobStatus = ref(null);
@@ -153,10 +157,28 @@ const edit = (e) => {
   showForm.value = true;
 };
 
-const remove = async (id) => {
-  await deleteExercise(id);
-  load({ notify: false });
-  showSnackbar("Exercise deleted");
+const promptDelete = (exercise) => {
+  exerciseToDelete.value = exercise;
+  deleteDialog.value = true;
+};
+
+const confirmDelete = async () => {
+  if (deleting.value || !exerciseToDelete.value?.id) return;
+
+  deleting.value = true;
+  deletingExerciseId.value = exerciseToDelete.value.id;
+  try {
+    await deleteExercise(exerciseToDelete.value.id);
+    await load({ notify: false });
+    showSnackbar("Exercise deleted");
+  } catch (e) {
+    showSnackbar("Failed to delete exercise", "error");
+  } finally {
+    deleting.value = false;
+    deletingExerciseId.value = null;
+    deleteDialog.value = false;
+    exerciseToDelete.value = null;
+  }
 };
 
 const openMedia = (id) => {
@@ -344,7 +366,9 @@ const startAiStream = (jobId) => {
               size="small"
               variant="text"
               color="red"
-              @click="remove(item.id)"
+              :loading="deletingExerciseId === item.id"
+              :disabled="deleting"
+              @click="promptDelete(item)"
             />
           </template>
         </v-tooltip>
@@ -396,6 +420,27 @@ const startAiStream = (jobId) => {
           <v-btn variant="text" @click="showAiDialog = false">Cancel</v-btn>
           <v-btn color="primary" :loading="aiLoading" @click="submitAi">
             Start
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="deleteDialog" max-width="420" :persistent="deleting">
+      <v-card>
+        <v-card-title class="text-h6">
+          Delete Exercise
+        </v-card-title>
+        <v-card-text>
+          Are you sure you want to delete
+          <b>{{ exerciseToDelete?.title }}</b>?
+          <br />
+          This will also remove linked media.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" :disabled="deleting" @click="deleteDialog = false">Cancel</v-btn>
+          <v-btn color="red" :loading="deleting" :disabled="deleting" @click="confirmDelete">
+            Delete
           </v-btn>
         </v-card-actions>
       </v-card>

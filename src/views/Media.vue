@@ -11,6 +11,9 @@ import {Color} from "@tiptap/extension-color";
 import {
   getMediaByExercise,
   uploadImage,
+  replaceImageFile,
+  uploadVideoFile,
+  replaceVideoFile,
   addYoutubeVideo,
   deleteMedia,
   updateMedia,
@@ -46,11 +49,13 @@ const title = ref("");
 const description = ref(""); // HTML
 const file = ref(null);
 const url = ref("");
+const videoSource = ref("FILE");
 const category = ref("");
 const sortOrder = ref(null);
 const saving = ref(false);
 const deleteDialog = ref(false);
 const mediaToDelete = ref(null);
+const deleting = ref(false);
 const editing = ref(false);
 const editTarget = ref(null);
 
@@ -148,30 +153,78 @@ const saveMedia = async () => {
   saving.value = true;
   try {
     if (editing.value && editTarget.value) {
-      await updateMedia(editTarget.value.id, {
-        title: title.value,
-        description: description.value,
-        url: url.value,
-        sortOrder: sortOrder.value,
-        type: type.value,
-        category: category.value || null,
-      });
-    } else {
-      if (type.value === "IMAGE" || type.value === "AUDIO") {
+      if (type.value === "IMAGE" && file.value) {
         const formData = new FormData();
         formData.append("file", file.value);
         formData.append("title", title.value);
         formData.append("description", description.value);
+        if (category.value) {
+          formData.append("category", category.value);
+        }
+        if (sortOrder.value !== null && sortOrder.value !== "") {
+          formData.append("sortOrder", sortOrder.value);
+        }
+        await replaceImageFile(editTarget.value.id, formData);
+      } else if (type.value === "VIDEO" && videoSource.value === "FILE" && file.value) {
+        const formData = new FormData();
+        formData.append("file", file.value);
+        formData.append("title", title.value);
+        formData.append("description", description.value);
+        if (category.value) {
+          formData.append("category", category.value);
+        }
+        if (sortOrder.value !== null && sortOrder.value !== "") {
+          formData.append("sortOrder", sortOrder.value);
+        }
+        await replaceVideoFile(editTarget.value.id, formData);
+      } else {
+        await updateMedia(editTarget.value.id, {
+          title: title.value,
+          description: description.value,
+          url: url.value,
+          sortOrder: sortOrder.value,
+          type: type.value,
+          category: category.value || null,
+        });
+      }
+    } else {
+      if (type.value === "IMAGE") {
+        const formData = new FormData();
+        formData.append("file", file.value);
+        formData.append("title", title.value);
+        formData.append("description", description.value);
+        if (category.value) {
+          formData.append("category", category.value);
+        }
+        if (sortOrder.value !== null && sortOrder.value !== "") {
+          formData.append("sortOrder", sortOrder.value);
+        }
 
         await uploadImage(exerciseId, formData);
       }
 
       if (type.value === "VIDEO") {
-        await addYoutubeVideo(exerciseId, {
-          youtubeUrl: url.value,
-          title: title.value,
-          description: description.value,
-        });
+        if (videoSource.value === "FILE") {
+          const formData = new FormData();
+          formData.append("file", file.value);
+          formData.append("title", title.value);
+          formData.append("description", description.value);
+          if (category.value) {
+            formData.append("category", category.value);
+          }
+          if (sortOrder.value !== null && sortOrder.value !== "") {
+            formData.append("sortOrder", sortOrder.value);
+          }
+          await uploadVideoFile(exerciseId, formData);
+        } else {
+          await addYoutubeVideo(exerciseId, {
+            youtubeUrl: url.value,
+            title: title.value,
+            description: description.value,
+            category: category.value || undefined,
+            sortOrder: sortOrder.value || undefined,
+          });
+        }
       }
     }
 
@@ -193,6 +246,9 @@ const removeMedia = (media) => {
 };
 
 const confirmDelete = async () => {
+  if (deleting.value || !mediaToDelete.value) return;
+
+  deleting.value = true;
   try {
     await deleteMedia(mediaToDelete.value.id);
     showSnackbar("Media deleted successfully");
@@ -200,6 +256,7 @@ const confirmDelete = async () => {
   } catch (e) {
     showSnackbar("Failed to delete media", "error");
   } finally {
+    deleting.value = false;
     deleteDialog.value = false;
     mediaToDelete.value = null;
   }
@@ -322,6 +379,7 @@ const resetForm = () => {
   description.value = "";
   file.value = null;
   url.value = "";
+  videoSource.value = "FILE";
   category.value = "";
   sortOrder.value = null;
   editing.value = false;
@@ -336,6 +394,7 @@ const openEdit = (item) => {
   title.value = item.title || "";
   description.value = item.description || "";
   url.value = item.url || "";
+  videoSource.value = isYoutubeUrl(item.url) ? "YOUTUBE_URL" : "FILE";
   category.value = item.category || "";
   sortOrder.value =
     typeof item.sortOrder === "number" ? item.sortOrder : null;
@@ -350,6 +409,8 @@ const getYoutubeEmbed = (videoUrl) => {
     : videoUrl.split("/").pop();
   return `https://www.youtube.com/embed/${id}`;
 };
+const isYoutubeUrl = (value) =>
+  value?.includes("youtube.com") || value?.includes("youtu.be");
 
 const isAiUrl = (value) => value?.startsWith("ai://");
 const isAiPending = (item) => isAiUrl(item?.url);
@@ -463,13 +524,21 @@ onBeforeUnmount(() => {
                 </div>
 
                 <iframe
-                  v-if="m.type === 'VIDEO'"
+                  v-if="m.type === 'VIDEO' && isYoutubeUrl(m.url)"
                   :src="getYoutubeEmbed(m.url)"
                   width="100%"
                   height="200"
                   frameborder="0"
                   allowfullscreen
                 />
+                <video
+                  v-else-if="m.type === 'VIDEO'"
+                  controls
+                  class="w-100"
+                  style="height: 200px; object-fit: contain; background: #111;"
+                >
+                  <source :src="m.url" />
+                </video>
 
                 <audio
                   v-if="m.type === 'AUDIO'"
@@ -523,7 +592,7 @@ onBeforeUnmount(() => {
         <v-card-text>
           <v-select
             label="Media Type"
-            :items="['IMAGE', 'VIDEO', 'AUDIO']"
+            :items="['IMAGE', 'VIDEO']"
             v-model="type"
             class="mb-4"
           />
@@ -542,7 +611,7 @@ onBeforeUnmount(() => {
           />
           <v-select
             label="Category"
-            :items="['DEMO', 'COMMON_MISTAKE', 'SAFETY_TIP']"
+            :items="['DEMO', 'FOCUS_AREA', 'ANATOMY', 'COMMON_MISTAKE', 'SAFETY_TIP']"
             v-model="category"
             clearable
             class="mb-4"
@@ -592,12 +661,14 @@ onBeforeUnmount(() => {
               <v-img :src="url" height="160" cover />
             </div>
             <v-file-input
-              v-if="type === 'IMAGE' || type === 'AUDIO'"
+              v-if="type === 'IMAGE'"
               label="Select File"
               v-model="file"
               prepend-icon="mdi-paperclip"
               variant="outlined"
-              :disabled="editing"
+              accept="image/*"
+              hint="When editing, selecting a file replaces the existing Cloudinary image."
+              persistent-hint
             />
 
             <div v-if="editing && type === 'VIDEO' && url" class="mb-4">
@@ -605,15 +676,46 @@ onBeforeUnmount(() => {
                 Current Video
               </label>
               <iframe
+                v-if="isYoutubeUrl(url)"
                 :src="getYoutubeEmbed(url)"
                 width="100%"
                 height="160"
                 frameborder="0"
                 allowfullscreen
               />
+              <video
+                v-else
+                controls
+                class="w-100"
+                style="height: 160px; object-fit: contain; background: #111;"
+              >
+                <source :src="url" />
+              </video>
             </div>
-            <v-text-field
+            <v-select
               v-if="type === 'VIDEO'"
+              label="Video Source"
+              :items="[
+                { title: 'Upload Video File', value: 'FILE' },
+                { title: 'YouTube URL', value: 'YOUTUBE_URL' }
+              ]"
+              v-model="videoSource"
+              variant="outlined"
+              class="mb-4"
+              :disabled="editing"
+            />
+            <v-file-input
+              v-if="type === 'VIDEO' && videoSource === 'FILE'"
+              label="Select Video"
+              v-model="file"
+              prepend-icon="mdi-paperclip"
+              variant="outlined"
+              accept="video/*"
+              hint="When editing, selecting a file replaces the existing Cloudinary video."
+              persistent-hint
+            />
+            <v-text-field
+              v-if="type === 'VIDEO' && videoSource === 'YOUTUBE_URL'"
               label="YouTube URL"
               v-model="url"
               prepend-icon="mdi-youtube"
@@ -670,7 +772,7 @@ onBeforeUnmount(() => {
       </v-card-actions>
     </v-card>
   </v-dialog>
-  <v-dialog v-model="deleteDialog" max-width="400">
+  <v-dialog v-model="deleteDialog" max-width="400" :persistent="deleting">
     <v-card>
       <v-card-title class="text-h6">
         Confirm Delete
@@ -685,8 +787,8 @@ onBeforeUnmount(() => {
 
       <v-card-actions>
         <v-spacer />
-        <v-btn text @click="deleteDialog = false">Cancel</v-btn>
-        <v-btn color="red" @click="confirmDelete">
+        <v-btn text :disabled="deleting" @click="deleteDialog = false">Cancel</v-btn>
+        <v-btn color="red" :loading="deleting" :disabled="deleting" @click="confirmDelete">
           Delete
         </v-btn>
       </v-card-actions>

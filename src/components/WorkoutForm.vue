@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="model" max-width="900">
+  <v-dialog v-model="model" max-width="900" :persistent="saving">
     <v-card>
       <v-card-title>
         {{ isEdit ? "Edit Workout" : "Create Workout" }}
@@ -59,6 +59,67 @@
             <EditorContent v-if="editor" :editor="editor"/>
           </div>
         </div>
+
+        <v-card variant="tonal" class="pa-3">
+          <div class="text-subtitle-2 mb-2">Workout Anatomy</div>
+          <v-file-input
+            v-model="anatomyFile"
+            label="Upload Anatomy Image"
+            accept="image/*"
+            prepend-icon="mdi-paperclip"
+            variant="outlined"
+            class="mt-2"
+            hint="Image uploads with Save/Update and replaces existing anatomy image."
+            persistent-hint
+          />
+          <v-img
+            v-if="form.anatomyImageUrl"
+            :src="form.anatomyImageUrl"
+            height="170"
+            class="mt-3 rounded"
+            cover
+          />
+          <div class="tiptap-field mt-3">
+            <label class="v-label">Anatomy Explanation</label>
+            <div class="editor-toolbar mb-2">
+              <v-btn
+                size="small"
+                icon
+                @click="anatomyEditor.chain().focus().toggleBold().run()"
+              >
+                <v-icon>mdi-format-bold</v-icon>
+              </v-btn>
+              <v-btn
+                size="small"
+                icon
+                @click="anatomyEditor.chain().focus().toggleItalic().run()"
+              >
+                <v-icon>mdi-format-italic</v-icon>
+              </v-btn>
+              <v-btn
+                size="small"
+                icon
+                @click="anatomyEditor.chain().focus().toggleBulletList().run()"
+              >
+                <v-icon>mdi-format-list-bulleted</v-icon>
+              </v-btn>
+              <v-btn
+                size="small"
+                icon
+                @click="
+                  anatomyEditor.chain().focus().setLink({
+                    href: prompt('Enter URL'),
+                  }).run()
+                "
+              >
+                <v-icon>mdi-link</v-icon>
+              </v-btn>
+            </div>
+            <div class="tiptap-wrapper">
+              <EditorContent v-if="anatomyEditor" :editor="anatomyEditor" />
+            </div>
+          </div>
+        </v-card>
 
         <v-row>
           <v-col>
@@ -148,8 +209,10 @@
       </v-card-text>
 
       <v-card-actions class="justify-end">
-        <v-btn variant="text" @click="close">Cancel</v-btn>
-        <v-btn color="primary" @click="save">Save</v-btn>
+        <v-btn variant="text" :disabled="saving" @click="close">Cancel</v-btn>
+        <v-btn color="primary" :loading="saving" :disabled="saving" @click="save">
+          Save
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -179,6 +242,8 @@ const isEdit = computed(() => !!props.workout);
 const form = ref({
   title: "",
   description: "",
+  anatomyImageUrl: "",
+  anatomyDescription: "",
   category: null,
   difficulty: null,
   equipmentType: null,
@@ -200,12 +265,21 @@ const equipment = [
 ];
 
 const exercises = ref([]);
+const anatomyFile = ref(null);
+const saving = ref(false);
 
 const editor = new Editor({
   extensions: [StarterKit],
   content: "",
   onUpdate({editor}) {
     form.value.description = editor.getHTML();
+  },
+});
+const anatomyEditor = new Editor({
+  extensions: [StarterKit],
+  content: "",
+  onUpdate({editor}) {
+    form.value.anatomyDescription = editor.getHTML();
   },
 });
 
@@ -232,7 +306,25 @@ const moveDown = (i) => {
 watch(
   () => props.workout,
   (w) => {
-    if (!w) return;
+    if (!w) {
+      form.value = {
+        title: "",
+        description: "",
+        anatomyImageUrl: "",
+        anatomyDescription: "",
+        category: null,
+        difficulty: null,
+        equipmentType: null,
+        equipmentRequired: false,
+        active: true,
+        exerciseIds: [],
+      };
+      selectedExercises.value = [];
+      anatomyFile.value = null;
+      editor.commands.setContent("");
+      anatomyEditor.commands.setContent("");
+      return;
+    }
 
     const orderedIds = Array.isArray(w.exercises)
       ? w.exercises.map(e => e.id)
@@ -241,6 +333,8 @@ watch(
     form.value = {
       title: w.title,
       description: w.description,
+      anatomyImageUrl: w.anatomyImageUrl || "",
+      anatomyDescription: w.anatomyDescription || "",
       category: w.category,
       difficulty: w.difficulty,
       equipmentType: w.equipmentType,
@@ -250,26 +344,47 @@ watch(
     };
 
     selectedExercises.value = [...orderedIds];
+    anatomyFile.value = null;
     editor.commands.setContent(w.description || "");
+    anatomyEditor.commands.setContent(w.anatomyDescription || "");
   },
   { immediate: true }
 );
 
-
-
 const save = async () => {
+  if (saving.value) return;
+  saving.value = true;
   form.value.exerciseIds = [...selectedExercises.value];
-
-  const payload = { ...form.value };
-
-  if (!props.workout?.id) {
-    await createWorkout(payload);
-  } else {
-    await updateWorkout(props.workout.id, payload);
+  const payload = new FormData();
+  payload.append("title", form.value.title || "");
+  payload.append("description", form.value.description || "");
+  payload.append("anatomyDescription", form.value.anatomyDescription || "");
+  payload.append("category", form.value.category || "");
+  payload.append("difficulty", form.value.difficulty || "");
+  payload.append("equipmentType", form.value.equipmentType || "");
+  payload.append("equipmentRequired", String(!!form.value.equipmentRequired));
+  payload.append("active", String(!!form.value.active));
+  selectedExercises.value.forEach((exerciseId) => {
+    payload.append("exerciseIds", exerciseId);
+  });
+  if (anatomyFile.value) {
+    payload.append("anatomyImageFile", anatomyFile.value);
+  } else if (form.value.anatomyImageUrl) {
+    payload.append("anatomyImageUrl", form.value.anatomyImageUrl);
   }
 
-  emit("saved");
-  close();
+  try {
+    if (!props.workout?.id) {
+      await createWorkout(payload);
+    } else {
+      await updateWorkout(props.workout.id, payload);
+    }
+
+    emit("saved");
+    close();
+  } finally {
+    saving.value = false;
+  }
 };
 
 
@@ -298,7 +413,10 @@ const loadExercises = async () => {
 
 
 onMounted(loadExercises);
-onBeforeUnmount(() => editor.destroy());
+onBeforeUnmount(() => {
+  editor.destroy();
+  anatomyEditor.destroy();
+});
 </script>
 
 <style scoped>
