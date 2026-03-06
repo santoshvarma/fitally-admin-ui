@@ -34,6 +34,8 @@
         <v-select
           label="Page"
           :items="pages"
+          item-title="title"
+          item-value="value"
           v-model="selectedPage"
           @update:modelValue="loadContent"
         />
@@ -98,9 +100,10 @@ import { ref, onMounted } from "vue";
 import { getContentByPage, deleteContent } from "@/api/cms";
 import CMSForm from "@/components/CMSForm.vue";
 import { useRouter } from "vue-router";
+import { getAppPages } from "@/api/app-pages";
 
-const pages = ["HOME", "ABOUT", "TERMS", "PRIVACY", "DASHBOARD"];
-const selectedPage = ref("HOME");
+const pages = ref([]);
+const selectedPage = ref("");
 
 const router = useRouter();
 const content = ref([]);
@@ -159,6 +162,11 @@ const showSnackbar = (message, color = "success") => {
 };
 
 const loadContent = async ({ notify = false } = {}) => {
+  if (!selectedPage.value) {
+    content.value = [];
+    totalItems.value = 0;
+    return;
+  }
   loading.value = true;
   try {
     const res = await getContentByPage(selectedPage.value, {
@@ -221,4 +229,16 @@ const refresh = () => {
 };
 
 onMounted(() => loadContent({ notify: false }));
+
+onMounted(async () => {
+  const res = await getAppPages();
+  pages.value = (Array.isArray(res.data) ? res.data : []).map((p) => ({
+    title: p.title,
+    value: p.pageKey,
+  }));
+  if (pages.value.length > 0) {
+    selectedPage.value = pages.value[0].value;
+    await loadContent({ notify: false });
+  }
+});
 </script>

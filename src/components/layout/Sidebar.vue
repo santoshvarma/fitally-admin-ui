@@ -58,6 +58,12 @@
         title="CMS"
         prepend-icon="mdi-file-document-edit"
       />
+
+      <v-list-item
+        to="/app-pages"
+        title="App Pages"
+        prepend-icon="mdi-view-list"
+      />
     </v-list>
   </v-navigation-drawer>
 </template>

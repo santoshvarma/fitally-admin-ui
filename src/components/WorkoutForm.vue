@@ -121,6 +121,27 @@
           </div>
         </v-card>
 
+        <v-card variant="tonal" class="pa-3">
+          <div class="text-subtitle-2 mb-2">Workout Collage Video</div>
+          <v-file-input
+            v-model="collageVideoFile"
+            label="Upload Collage Video"
+            accept="video/*"
+            prepend-icon="mdi-video"
+            variant="outlined"
+            class="mt-2"
+            hint="Video uploads with Save/Update and replaces existing collage video."
+            persistent-hint
+          />
+          <video
+            v-if="form.collageVideoUrl"
+            :src="form.collageVideoUrl"
+            controls
+            preload="metadata"
+            class="mt-3 rounded workout-video-preview"
+          />
+        </v-card>
+
         <v-row>
           <v-col>
             <v-select
@@ -243,6 +264,7 @@ const form = ref({
   title: "",
   description: "",
   anatomyImageUrl: "",
+  collageVideoUrl: "",
   anatomyDescription: "",
   category: null,
   difficulty: null,
@@ -266,6 +288,7 @@ const equipment = [
 
 const exercises = ref([]);
 const anatomyFile = ref(null);
+const collageVideoFile = ref(null);
 const saving = ref(false);
 
 const editor = new Editor({
@@ -311,6 +334,7 @@ watch(
         title: "",
         description: "",
         anatomyImageUrl: "",
+        collageVideoUrl: "",
         anatomyDescription: "",
         category: null,
         difficulty: null,
@@ -321,6 +345,7 @@ watch(
       };
       selectedExercises.value = [];
       anatomyFile.value = null;
+      collageVideoFile.value = null;
       editor.commands.setContent("");
       anatomyEditor.commands.setContent("");
       return;
@@ -334,6 +359,7 @@ watch(
       title: w.title,
       description: w.description,
       anatomyImageUrl: w.anatomyImageUrl || "",
+      collageVideoUrl: w.collageVideoUrl || "",
       anatomyDescription: w.anatomyDescription || "",
       category: w.category,
       difficulty: w.difficulty,
@@ -345,6 +371,7 @@ watch(
 
     selectedExercises.value = [...orderedIds];
     anatomyFile.value = null;
+    collageVideoFile.value = null;
     editor.commands.setContent(w.description || "");
     anatomyEditor.commands.setContent(w.anatomyDescription || "");
   },
@@ -359,6 +386,7 @@ const save = async () => {
   payload.append("title", form.value.title || "");
   payload.append("description", form.value.description || "");
   payload.append("anatomyDescription", form.value.anatomyDescription || "");
+  payload.append("collageVideoUrl", form.value.collageVideoUrl || "");
   payload.append("category", form.value.category || "");
   payload.append("difficulty", form.value.difficulty || "");
   payload.append("equipmentType", form.value.equipmentType || "");
@@ -371,6 +399,9 @@ const save = async () => {
     payload.append("anatomyImageFile", anatomyFile.value);
   } else if (form.value.anatomyImageUrl) {
     payload.append("anatomyImageUrl", form.value.anatomyImageUrl);
+  }
+  if (collageVideoFile.value) {
+    payload.append("collageVideoFile", collageVideoFile.value);
   }
 
   try {
@@ -420,5 +451,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-
+.workout-video-preview {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+}
 </style>

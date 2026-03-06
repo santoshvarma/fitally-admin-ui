@@ -1,7 +1,7 @@
 import api from "./axios";
 
-export const getContentByPage = (page, params = {}) =>
-  api.get("/content", { params: { page, ...params } });
+export const getContentByPage = (pageKey, params = {}) =>
+  api.get("/content", { params: { pageKey, ...params } });
 
 export const createContent = (data) =>
   api.post("/content", data);

@@ -10,6 +10,7 @@ import Programs from "@/views/Programs.vue";
 import ProgramBuilder from "@/views/ProgramBuilder.vue";
 import CMS from "@/views/CMS.vue";
 import CMSMedia from "@/views/CMSMedia.vue";
+import AppPages from "@/views/AppPages.vue";
 
 import AdminLayout from "@/layouts/AdminLayout.vue";
 import {useErrorStore} from "@/stores/error.js";
@@ -32,6 +33,7 @@ const routes = [
       { path: "workouts/:workoutId/exercises", component: Exercises },
       { path: "programs", component: Programs },
       { path: "programs/:programId/builder", component: ProgramBuilder },
+      { path: "app-pages", component: AppPages },
       { path: "cms", component: CMS },
       { path: "cms/:contentId/media", component: CMSMedia },
     ],
